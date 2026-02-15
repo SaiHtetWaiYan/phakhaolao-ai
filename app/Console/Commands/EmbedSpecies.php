@@ -19,7 +19,7 @@ class EmbedSpecies extends Command
         {--provider= : Embeddings provider name (defaults to ai.default_for_embeddings)}
         {--model= : Embeddings model name}
         {--dimensions=1536 : Embedding vector dimensions}
-        {--max-chars=8000 : Max characters per species document}
+        {--max-chars=6000 : Max characters per species document}
         {--delay=0 : Delay between batches in milliseconds}
         {--dry-run : Build payloads without calling the embeddings API}';
 
