@@ -4,13 +4,19 @@
 
 @section('content')
 <div id="chat-app" class="flex h-full bg-white dark:bg-zinc-950">
+    {{-- Sidebar Overlay --}}
+    <div id="sidebar-overlay" class="fixed inset-0 z-40 bg-zinc-900/50 backdrop-blur-sm hidden md:hidden"></div>
+
     {{-- Sidebar --}}
-    <aside class="hidden md:flex w-[260px] flex-col bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 transition-all duration-300">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-[280px] flex flex-col bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 transition-transform duration-300 -translate-x-full md:translate-x-0 md:relative md:flex md:w-[260px]">
         {{-- Sidebar Header --}}
-        <div class="h-14 flex items-center px-4 border-b border-zinc-200 dark:border-zinc-800">
+        <div class="h-14 flex items-center justify-between px-4 border-b border-zinc-200 dark:border-zinc-800">
             <a href="{{ route('chat') }}" class="flex items-center gap-2">
                 <img src="{{ asset('images/logo.webp') }}" alt="Logo" class="h-8 w-auto dark:filter-[invert(1)_hue-rotate(180deg)]">
             </a>
+            <button id="close-sidebar-btn" class="md:hidden p-2 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
         </div>
 
         {{-- New Chat Button --}}
@@ -309,6 +315,28 @@ document.addEventListener('DOMContentLoaded', function () {
     const imagePreviewImg = document.getElementById('image-preview-img');
     const imagePreviewRemove = document.getElementById('image-preview-remove');
     const themeToggleButtons = Array.from(document.querySelectorAll('[data-theme-toggle]'));
+
+    // Mobile Sidebar Elements
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+    function openSidebar() {
+        sidebar.classList.remove('-translate-x-full');
+        sidebarOverlay.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function closeSidebar() {
+        sidebar.classList.add('-translate-x-full');
+        sidebarOverlay.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    mobileMenuBtn?.addEventListener('click', openSidebar);
+    closeSidebarBtn?.addEventListener('click', closeSidebar);
+    sidebarOverlay?.addEventListener('click', closeSidebar);
 
     function syncThemeToggleIcons() {
         const isDark = document.documentElement.classList.contains('dark');
