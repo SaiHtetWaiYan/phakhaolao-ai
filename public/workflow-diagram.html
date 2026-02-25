@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PhaKhaoLao AI — UML Workflow</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #ffffff;
+    padding: 40px 48px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 4px;
+    letter-spacing: 0.2px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 36px;
+  }
+  .section {
+    margin-bottom: 48px;
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    border-bottom: 2px solid #111827;
+    padding-bottom: 6px;
+    margin-bottom: 20px;
+  }
+  .mermaid {
+    display: flex;
+    justify-content: center;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+  .grid-4 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 24px;
+  }
+</style>
+</head>
+<body>
+
+<h1>PhaKhaoLao AI — System Workflow</h1>
+<p class="subtitle">UML Activity &amp; Sequence Diagrams · Laos Biodiversity Chat Assistant</p>
+
+<!-- ① SYSTEM OVERVIEW -->
+<div class="section">
+  <div class="section-title">① System Architecture Overview</div>
+  <div class="mermaid">
+flowchart TB
+    U([👤 User]):::actor
+
+    subgraph FE["Frontend (Browser)"]
+      UI[Chat UI\nText · Image · Chart · Export]
+    end
+
+    subgraph BE["Backend (Laravel 12)"]
+      CC[ChatController\nValidate · Rate-limit · Intent detect]
+      DB2[(Conversation DB\nAgentConversations\nMessages)]
+    end
+
+    subgraph AI["AI Layer"]
+      CA[ChatAssistant Agent\nOpenAI · Streaming · Bilingual]
+      subgraph TOOLS["Tools"]
+        T1[SearchSpecies\nKeyword + pgvector]
+        T2[ExportSpecies\nPhpSpreadsheet]
+        T3[SimilaritySearch\nVector cosine]
+        T4[ChartBuilder\nGROUP BY query]
+      end
+    end
+
+    subgraph PG["PostgreSQL Database"]
+      S[(species\n1400+ records\npgvector embeddings)]
+      SET[(app_settings\nRAG config)]
+    end
+
+    subgraph PIPE["Data Pipeline (offline)"]
+      P1[species:scrape\nIndex + Detail]
+      P2[species:embed\nOpenAI 1536-dim]
+      SRC[phakhaolao.la\nSource]
+    end
+
+    U -- "HTTP POST /chat/send" --> UI
+    UI --> CC
+    CC --> DB2
+    CC --> CA
+    CA --> T1 & T2 & T3 & T4
+    T1 & T3 --> S
+    T2 --> S
+    T4 --> S
+    CA -- "SSE stream" --> UI
+    UI -- "Response" --> U
+
+    SRC --> P1 --> P2 --> S
+
+    classDef actor fill:#fff,stroke:#111,stroke-width:2px,font-weight:bold
+    classDef default fill:#f9fafb,stroke:#374151,color:#111827
+  </div>
+</div>
+
+<!-- ② SEQUENCE DIAGRAMS (2-col grid) -->
+<div class="section">
+  <div class="section-title">② User Workflows — Sequence Diagrams</div>
+  <div class="grid-2">
+
+    <!-- Chat -->
+    <div>
+      <p style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px;">A · Species Chat Query</p>
+      <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant UI as Chat UI
+    participant CC as Controller
+    participant CA as AI Agent
+    participant SS as SearchSpecies
+    participant DB as Species DB
+
+    U->>UI: Type question (EN/ລາວ)
+    UI->>CC: POST /chat/send
+    CC->>CC: Validate & sanitize
+    CC->>CA: Init agent + history
+    CA->>SS: search(query, category)
+    SS->>DB: Keyword + vector query
+    DB-->>SS: Ranked results
+    SS-->>CA: Species data
+    CA-->>UI: Stream response (SSE)
+    UI-->>U: Display AI answer
+      </div>
+    </div>
+
+    <!-- Image -->
+    <div>
+      <p style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px;">B · Photo Identification</p>
+      <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant UI as Chat UI
+    participant CC as Controller
+    participant CA as AI Agent
+    participant SS as SearchSpecies
+    participant DB as Species DB
+
+    U->>UI: Upload species photo
+    UI->>CC: POST /chat/send + image
+    CC->>CA: Agent with vision prompt
+    CA->>CA: Vision → candidate list
+    CA->>SS: search(candidates)
+    SS->>DB: Match in database
+    DB-->>SS: Best match record
+    SS-->>CA: Species details + map
+    CA-->>UI: Stream identification
+    UI-->>U: Name · Photo · Map
+      </div>
+    </div>
+
+    <!-- Export -->
+    <div>
+      <p style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px;">C · Excel Export</p>
+      <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant UI as Chat UI
+    participant CC as Controller
+    participant CA as AI Agent
+    participant ES as ExportSpecies
+    participant DB as Species DB
+
+    U->>UI: "Export all birds as Excel"
+    UI->>CC: POST /chat/send
+    CC->>CA: Detect export intent
+    CA->>ES: export(filters, columns)
+    ES->>DB: Filtered species query
+    DB-->>ES: Species records
+    ES->>ES: Generate .xlsx
+    ES-->>CA: Token + count
+    CA-->>UI: Stream download link
+    U->>CC: GET /export/{token}
+    CC-->>U: Download .xlsx file
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div>
+      <p style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px;">D · Chart Generation</p>
+      <div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant UI as Chat UI
+    participant CC as Controller
+    participant DB as Species DB
+
+    U->>UI: "Chart species by family"
+    UI->>CC: POST /chat/send
+    CC->>CC: Detect chart intent
+    CC->>CC: Extract dimension
+    CC->>DB: SELECT family COUNT(*) GROUP BY
+    DB-->>CC: Grouped counts
+    CC-->>UI: JSON chart payload
+    UI->>UI: Render Chart.js
+    UI-->>U: Interactive chart
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ③ DATA PIPELINE -->
+<div class="section">
+  <div class="section-title">③ Data Ingestion Pipeline (Offline Admin)</div>
+  <div class="mermaid">
+flowchart LR
+    A([phakhaolao.la\nSource Website\n81 pages])
+    B[species:scrape\n--phase=index\nCollect source IDs]
+    C[(species table\nstatus: pending)]
+    D[species:scrape\n--phase=detail\nScrape full details]
+    E[(species table\nstatus: scraped\nnames · images · maps)]
+    F[species:embed\nOpenAI API\nbatches of 25]
+    G[(species table\nstatus: embedded\n1536-dim vector)]
+    H([AI Search\nReady ✓\nKeyword + Semantic])
+
+    A -->|HTTP scrape| B --> C -->|retry-failed| D --> E --> F --> G --> H
+
+    style A fill:#f9fafb,stroke:#374151
+    style H fill:#f0fdf4,stroke:#16a34a,color:#14532d,font-weight:bold
+  </div>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'neutral',
+    flowchart: { curve: 'basis', padding: 20 },
+    sequence: {
+      diagramMarginX: 10,
+      diagramMarginY: 10,
+      actorMargin: 40,
+      width: 120,
+      height: 50,
+      boxMargin: 8,
+      messageMargin: 28,
+      mirrorActors: false,
+      useMaxWidth: true,
+      wrap: true,
+      wrapPadding: 10,
+    },
+    themeVariables: {
+      fontFamily: 'Segoe UI, system-ui, sans-serif',
+      fontSize: '13px',
+    }
+  });
+</script>
+</body>
+</html>
