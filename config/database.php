@@ -98,6 +98,21 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        'pkl' => [
+            'driver' => 'pgsql',
+            'url' => env('PKL_DB_URL'),
+            'host' => env('PKL_DB_HOST', '127.0.0.1'),
+            'port' => env('PKL_DB_PORT', '5432'),
+            'database' => env('PKL_DB_DATABASE', 'pkl'),
+            'username' => env('PKL_DB_USERNAME', 'saihtetwaiyan'),
+            'password' => env('PKL_DB_PASSWORD', ''),
+            'charset' => env('PKL_DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'data,public',
+            'sslmode' => env('PKL_DB_SSLMODE', 'prefer'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),
