@@ -3,10 +3,13 @@
 namespace App\Services;
 
 use App\Models\Champion;
+use App\Services\Concerns\MapsWordPressPosts;
 use Illuminate\Support\Arr;
 
 class ChampionImporter
 {
+    use MapsWordPressPosts;
+
     /** Languages to sync (WPML stores each as a separate post). */
     private const LANGUAGES = ['en', 'lo'];
 
@@ -99,28 +102,6 @@ class ChampionImporter
     }
 
     /**
-     * @param  array<string, mixed>  $post
-     * @return array<string, array<int, string>>
-     */
-    private function extractTerms(array $post): array
-    {
-        $grouped = [];
-
-        foreach (Arr::get($post, '_embedded.wp:term', []) as $group) {
-            foreach ((array) $group as $term) {
-                $taxonomy = $term['taxonomy'] ?? null;
-                $name = $this->htmlText($term['name'] ?? null);
-
-                if ($taxonomy !== null && $name !== null) {
-                    $grouped[$taxonomy][] = $name;
-                }
-            }
-        }
-
-        return $grouped;
-    }
-
-    /**
      * @param  array<string, mixed>  $acf
      * @return array<int, string>
      */
@@ -165,28 +146,5 @@ class ChampionImporter
         $value = $this->clean(is_string($value) ? $value : null);
 
         return ($value !== null && str_starts_with($value, 'http')) ? $value : null;
-    }
-
-    private function htmlText(?string $value): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        $value = html_entity_decode(strip_tags($value), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-        return $this->clean($value);
-    }
-
-    private function clean(?string $value): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
-        $value = trim($value);
-
-        return $value !== '' ? $value : null;
     }
 }
