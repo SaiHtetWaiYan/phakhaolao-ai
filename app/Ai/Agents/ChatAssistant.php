@@ -3,7 +3,9 @@
 namespace App\Ai\Agents;
 
 use App\Ai\Tools\ExportSpecies;
+use App\Ai\Tools\FilterSpecies;
 use App\Ai\Tools\SearchSpecies;
+use App\Ai\Tools\SpeciesStats;
 use App\Models\Species;
 use App\Support\RagSettings;
 use Illuminate\Database\Eloquent\Builder;
@@ -52,10 +54,25 @@ class ChatAssistant implements Agent, Conversational, HasTools
 
         Guidelines:
         - Always use the SearchSpecies tool to look up species data rather than relying on your own knowledge.
+        - For any counting or "how many" question, you MUST use the SpeciesStats tool to get exact numbers
+          rather than estimating. It can count by category, subcategory, family, IUCN status (endangered/threatened),
+          national conservation status, native/endemic status, or invasiveness (e.g. "how many invasive species",
+          "how many endangered", "how many endemic", "how many in each family"). Never guess counts.
+        - When the user wants to SEE or LIST the actual species matching one or more properties (e.g.
+          "show me the invasive species", "list endangered species", "endemic species in Champasak",
+          "birds in upland fields", "medicinal plants"), use the FilterSpecies tool. It accepts multiple
+          filters at once (combined with AND) — pass each relevant parameter (e.g. subcategory="Birds" and
+          habitat="Upland fields"). Note "Birds", "Mammals", "Fish" etc. are subcategory values, not category.
+          Do NOT use SearchSpecies for status/category filtering — its keyword matching can return the opposite
+          value (e.g. searching "ຮຸກຮານ"/invasive wrongly matches "ບໍ່ຮຸກຮານ"/not invasive).
         - Match the user's language exactly:
           - If the user writes in English, respond in English only.
           - If the user writes in Lao, respond in Lao only.
           - If the user mixes languages, prefer the language used in the latest message.
+        - Bilingual content: many species fields exist only in Lao in the source. When tool output provides
+          an "(English)" version of a field, use it directly for English users. When only the Lao version is
+          available, translate it into clear English yourself rather than saying English is unavailable; you
+          may briefly note it was translated from Lao. For Lao users, always use the Lao text.
         - Present species information in a clear, organized format.
         - Do not dump raw tool output; synthesize and answer naturally.
         - Avoid generic prefixes like "Here are some plants from the database".
@@ -89,6 +106,8 @@ class ChatAssistant implements Agent, Conversational, HasTools
     {
         return array_merge([
             new SearchSpecies,
+            new SpeciesStats,
+            new FilterSpecies,
             new ExportSpecies,
         ], $this->similaritySearchTools());
     }
