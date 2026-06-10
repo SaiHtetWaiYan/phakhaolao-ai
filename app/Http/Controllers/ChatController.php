@@ -6,6 +6,7 @@ use App\Ai\Agents\ChatAssistant;
 use App\Http\Requests\SendMessageRequest;
 use App\Models\AgentConversation;
 use App\Models\AgentConversationMessage;
+use App\Models\Champion;
 use App\Models\Species;
 use App\Services\SpeciesExportService;
 use App\Support\RagSettings;
@@ -253,6 +254,12 @@ class ChatController extends Controller
         }
 
         if (! $hasImage && $this->isImageRequest($message)) {
+            $combined = $this->buildContextAwareMessage($message, $recentContext);
+
+            if ($champion = $this->findChampionFromContext($combined)) {
+                return $this->streamPlainTextResponse($this->formatChampionImages($champion), $conversationId);
+            }
+
             $imageMessage = $this->buildSpeciesImageResponse($message, $conversationId, $request, $recentContext);
 
             return $this->streamPlainTextResponse($imageMessage, $conversationId);
@@ -852,6 +859,51 @@ class ChatController extends Controller
         $query = trim($query, " \t\n\r\0\x0B,.-:");
 
         return $query;
+    }
+
+    private function findChampionFromContext(string $combined): ?Champion
+    {
+        if (preg_match('#/champion/([^/\s)]+)#i', $combined, $matches) === 1) {
+            $champion = Champion::query()
+                ->where(function (Builder $q) use ($matches): void {
+                    $q->where('source_url', 'like', '%/champion/'.$matches[1].'%')
+                        ->orWhere('slug', rawurldecode($matches[1]));
+                })
+                ->first();
+
+            if ($champion !== null) {
+                return $champion;
+            }
+        }
+
+        return Champion::query()
+            ->get()
+            ->filter(fn (Champion $c) => mb_strlen($c->name) >= 4 && mb_stripos($combined, $c->name) !== false)
+            ->sortByDesc(fn (Champion $c) => mb_strlen($c->name))
+            ->first();
+    }
+
+    private function formatChampionImages(Champion $champion): string
+    {
+        $images = collect([$champion->featured_image])
+            ->merge(is_array($champion->gallery) ? $champion->gallery : [])
+            ->map(fn ($url) => is_string($url) ? trim($url) : null)
+            ->filter(fn ($url) => is_string($url) && preg_match('#^https?://#i', $url) === 1)
+            ->unique()
+            ->take(6)
+            ->values();
+
+        if ($images->isEmpty()) {
+            return "**{$champion->name}** — no photos are available for this champion."
+                .($champion->source_url ? "\n\nChampion page: {$champion->source_url}" : '');
+        }
+
+        $markdown = $images
+            ->map(fn (string $url, int $index) => "![{$champion->name} photo ".($index + 1)."]({$url})")
+            ->implode("\n");
+
+        return "**{$champion->name}**\n\n".$markdown
+            .($champion->source_url ? "\n\nChampion page: {$champion->source_url}" : '');
     }
 
     private function buildSpeciesImageResponse(string $message, ?string $conversationId = null, ?Request $request = null, string $recentContext = ''): string

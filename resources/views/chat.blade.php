@@ -577,7 +577,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return DOMPurify.sanitize(html, {
                 ADD_TAGS: ['canvas'],
                 ALLOWED_TAGS: ['a', 'b', 'strong', 'em', 'i', 'code', 'pre', 'br', 'div', 'span', 'img', 'svg', 'path', 'ul', 'ol', 'li', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
-                ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'src', 'alt', 'loading', 'data-fallback-img', 'viewBox', 'fill', 'stroke', 'stroke-linecap', 'stroke-linejoin', 'stroke-width', 'd', 'width', 'height'],
+                ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'src', 'alt', 'loading', 'referrerpolicy', 'data-fallback-img', 'viewBox', 'fill', 'stroke', 'stroke-linecap', 'stroke-linejoin', 'stroke-width', 'd', 'width', 'height'],
                 ALLOW_DATA_ATTR: false,
             });
         }
@@ -738,10 +738,10 @@ document.addEventListener('DOMContentLoaded', function () {
         text = text.replace(/https:\/\/species\.phakhaolao\.la\/species\/(\d+)/gi, 'https://species.phakhaolao.la/search/specie_details/$1');
         let html = escapeHtml(text);
         html = html.replace(/```([\s\S]*?)```/g, '<pre class="bg-zinc-900 text-zinc-100 p-3 rounded-lg my-2 overflow-x-auto text-sm"><code>$1</code></pre>');
-        html = html.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, '<div class="my-3 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm"><img src="$2" alt="$1" loading="lazy" class="max-h-80 w-auto object-contain" data-fallback-img /></div>');
+        html = html.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, '<img src="$2" alt="$1" loading="lazy" referrerpolicy="no-referrer" class="pk-chat-img" data-fallback-img />');
         html = html.replace(/(^|[\s>])(https?:\/\/[^\s<>"']+\.(?:png|jpe?g|gif|webp)(?:\?[^\s<>"']*)?)(?=$|[\s<])/gmi, (full, prefix, url) => {
             const clean = String(url).replace(/[.,;:!?)]+$/g, '');
-            return `${prefix}<div class="my-3 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm"><img src="${clean}" alt="species image" loading="lazy" class="max-h-80 w-auto object-contain" data-fallback-img /></div>`;
+            return `${prefix}<img src="${clean}" alt="species image" loading="lazy" referrerpolicy="no-referrer" class="pk-chat-img" data-fallback-img />`;
         });
         html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 underline">$1</a>');
         html = html.replace(/(^|[\s>])(https?:\/\/[^\s<>"']+)(?=$|[\s<])/gmi, (full, prefix, url) => {
@@ -754,6 +754,20 @@ document.addEventListener('DOMContentLoaded', function () {
         html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
         html = html.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded-md bg-zinc-200 dark:bg-zinc-700 text-sm font-mono">$1</code>');
         html = html.replace(/\n/g, '<br>');
+        // Group consecutive images into a compact thumbnail grid (single image stays medium).
+        html = html.replace(/(?:<img[^>]*class="pk-chat-img[^>]*>(?:\s*<br>\s*)?)+/g, (run) => {
+            let imgs = run.replace(/<br>/g, '').trim();
+            const count = (imgs.match(/<img/g) || []).length;
+            const border = 'rounded-lg border border-zinc-200 dark:border-zinc-700';
+
+            if (count === 1) {
+                imgs = imgs.replace(/class="pk-chat-img[^"]*"/, `class="w-full h-auto max-h-64 object-contain ${border}"`);
+                return `<div class="my-3 max-w-[16rem]">${imgs}</div>`;
+            }
+
+            imgs = imgs.replace(/class="pk-chat-img[^"]*"/g, `class="w-full h-24 sm:h-28 object-cover ${border}"`);
+            return `<div class="grid grid-cols-3 sm:grid-cols-4 gap-1.5 my-3 max-w-md">${imgs}</div>`;
+        });
         return html;
     }
 
