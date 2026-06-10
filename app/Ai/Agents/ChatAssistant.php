@@ -4,6 +4,7 @@ namespace App\Ai\Agents;
 
 use App\Ai\Tools\ExportSpecies;
 use App\Ai\Tools\FilterSpecies;
+use App\Ai\Tools\SearchChampions;
 use App\Ai\Tools\SearchSpecies;
 use App\Ai\Tools\SpeciesStats;
 use App\Models\Species;
@@ -54,6 +55,9 @@ class ChatAssistant implements Agent, Conversational, HasTools
 
         Guidelines:
         - Always use the SearchSpecies tool to look up species data rather than relying on your own knowledge.
+        - When the user asks about "champions", agrobiodiversity champions, the people, companies, cooperatives,
+          or researchers featured by PhaKhaoLao (e.g. "tell me about the champions", "champions in coffee",
+          "champions in Houaphan"), use the SearchChampions tool. Pass language="en" or "lo" to match the user.
         - For any counting or "how many" question, you MUST use the SpeciesStats tool to get exact numbers
           rather than estimating. It can count by category, subcategory, family, IUCN status (endangered/threatened),
           national conservation status, native/endemic status, or invasiveness (e.g. "how many invasive species",
@@ -108,6 +112,7 @@ class ChatAssistant implements Agent, Conversational, HasTools
             new SearchSpecies,
             new SpeciesStats,
             new FilterSpecies,
+            new SearchChampions,
             new ExportSpecies,
         ], $this->similaritySearchTools());
     }
