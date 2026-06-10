@@ -7,6 +7,7 @@ use App\Ai\Tools\FilterSpecies;
 use App\Ai\Tools\SearchChampions;
 use App\Ai\Tools\SearchLibrary;
 use App\Ai\Tools\SearchSpecies;
+use App\Ai\Tools\SearchStories;
 use App\Ai\Tools\SpeciesStats;
 use App\Models\Species;
 use App\Support\RagSettings;
@@ -63,6 +64,8 @@ class ChatAssistant implements Agent, Conversational, HasTools
           or other reference documents (e.g. "find resources about NTFPs", "any books on rice?",
           "library resources on conservation"), use the SearchLibrary tool. Share the resource page link so
           the user can download or read it.
+        - When the user asks for stories or articles (e.g. "any stories about farming?", "field stories on
+          nutrition", "stories from communities"), use the SearchStories tool and share the link to read more.
         - For any counting or "how many" question, you MUST use the SpeciesStats tool to get exact numbers
           rather than estimating. It can count by category, subcategory, family, IUCN status (endangered/threatened),
           national conservation status, native/endemic status, or invasiveness (e.g. "how many invasive species",
@@ -119,6 +122,7 @@ class ChatAssistant implements Agent, Conversational, HasTools
             new FilterSpecies,
             new SearchChampions,
             new SearchLibrary,
+            new SearchStories,
             new ExportSpecies,
         ], $this->similaritySearchTools());
     }
