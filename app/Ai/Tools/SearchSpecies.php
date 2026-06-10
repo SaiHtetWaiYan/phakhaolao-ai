@@ -52,11 +52,14 @@ class SearchSpecies implements Tool
         'animals' => 'ສັດ',
         'plant' => 'ພືດ',
         'plants' => 'ພືດ',
-        'fungi' => 'ເຫັດ',
-        'fungus' => 'ເຫັດ',
+        'fungi' => 'ເຊື້ອເຫັດ',
+        'fungus' => 'ເຊື້ອເຫັດ',
+        'mushroom' => 'ເຊື້ອເຫັດ',
+        'mushrooms' => 'ເຊື້ອເຫັດ',
         'ສັດ' => 'ສັດ',
         'ພືດ' => 'ພືດ',
-        'ເຫັດ' => 'ເຫັດ',
+        'ເຫັດ' => 'ເຊື້ອເຫັດ',
+        'ເຊື້ອເຫັດ' => 'ເຊື້ອເຫັດ',
     ];
 
     /**
@@ -69,21 +72,28 @@ class SearchSpecies implements Tool
         'fishes' => 'ປາ',
         'mammal' => 'ສັດລ້ຽງລູກດ້ວຍນົມ',
         'mammals' => 'ສັດລ້ຽງລູກດ້ວຍນົມ',
-        'bird' => 'ນົກ',
-        'birds' => 'ນົກ',
+        'bird' => 'ສັດປີກ',
+        'birds' => 'ສັດປີກ',
         'reptile' => 'ສັດເລືອຄານ',
         'reptiles' => 'ສັດເລືອຄານ',
         'amphibian' => 'ສັດເຄິ່ງບົກເຄິ່ງນ້ຳ',
         'amphibians' => 'ສັດເຄິ່ງບົກເຄິ່ງນ້ຳ',
         'insect' => 'ແມງໄມ້',
         'insects' => 'ແມງໄມ້',
+        'mollusc' => 'ສັດອ່ອນແຫຼວ',
+        'molluscs' => 'ສັດອ່ອນແຫຼວ',
+        'arthropod' => 'ສັດທີ່ມີຂໍ້ຕໍ່',
+        'arthropods' => 'ສັດທີ່ມີຂໍ້ຕໍ່',
         'tree' => 'ໄມ້ຢືນຕົ້ນ',
         'trees' => 'ໄມ້ຢືນຕົ້ນ',
         'ປາ' => 'ປາ',
-        'ນົກ' => 'ນົກ',
+        'ນົກ' => 'ສັດປີກ',
+        'ສັດປີກ' => 'ສັດປີກ',
         'ສັດລ້ຽງລູກດ້ວຍນົມ' => 'ສັດລ້ຽງລູກດ້ວຍນົມ',
         'ສັດເລືອຄານ' => 'ສັດເລືອຄານ',
         'ສັດເຄິ່ງບົກເຄິ່ງນ້ຳ' => 'ສັດເຄິ່ງບົກເຄິ່ງນ້ຳ',
+        'ສັດທີ່ມີຂໍ້ຕໍ່' => 'ສັດທີ່ມີຂໍ້ຕໍ່',
+        'ສັດອ່ອນແຫຼວ' => 'ສັດອ່ອນແຫຼວ',
         'ແມງໄມ້' => 'ແມງໄມ້',
         'ໄມ້ຢືນຕົ້ນ' => 'ໄມ້ຢືນຕົ້ນ',
     ];
@@ -160,7 +170,10 @@ class SearchSpecies implements Tool
         return Species::query()
             ->where('scrape_status', 'scraped')
             ->when($categoryFilter, fn ($q) => $q->where('category', $categoryFilter))
-            ->when($subcategoryFilter, fn ($q) => $q->where('subcategory', $subcategoryFilter))
+            ->when($subcategoryFilter, fn ($q) => $q->where(function ($inner) use ($subcategoryFilter) {
+                $inner->where('subcategory', $subcategoryFilter)
+                    ->orWhere('species_type', $subcategoryFilter);
+            }))
             ->inRandomOrder()
             ->limit($limit)
             ->get();
@@ -476,6 +489,9 @@ class SearchSpecies implements Tool
         if ($botanicalDescription = $this->cleanText($species->botanical_description)) {
             $parts[] = 'Description: '.$this->truncateText($botanicalDescription, $concise ? 260 : 420);
         }
+        if (($botanicalDescriptionEn = $this->cleanText($species->botanical_description_en)) && $botanicalDescriptionEn !== $botanicalDescription) {
+            $parts[] = 'Description (English): '.$this->truncateText($botanicalDescriptionEn, $concise ? 260 : 420);
+        }
         if (! empty($species->use_types)) {
             $cleanUseTypes = array_values(array_filter(
                 array_map(fn ($v) => $this->cleanText(is_string($v) ? $v : null), $species->use_types)
@@ -486,6 +502,9 @@ class SearchSpecies implements Tool
         }
         if ($useDescription = $this->cleanText($species->use_description)) {
             $parts[] = 'Use details: '.$this->truncateText($useDescription, $concise ? 220 : 380);
+        }
+        if (($useDescriptionEn = $this->cleanText($species->use_description_en)) && $useDescriptionEn !== $useDescription) {
+            $parts[] = 'Use details (English): '.$this->truncateText($useDescriptionEn, $concise ? 220 : 380);
         }
         if ($localNames = $this->formatStringArray($species->local_names ?? null, $concise ? 5 : 10)) {
             $parts[] = "Local names: {$localNames}";
@@ -588,11 +607,63 @@ class SearchSpecies implements Tool
         if ($marketData = $this->cleanText($species->market_data)) {
             $parts[] = 'Market: '.$this->truncateText($marketData, 180);
         }
-        if ($references = $this->formatStringArray($species->references ?? null, $concise ? 4 : 8)) {
+        if ($references = $this->formatReferences($species->references ?? null, $concise ? 4 : 8)) {
             $parts[] = "References: {$references}";
+        }
+        if ($externalLinks = $this->formatExternalLinks($species->external_links ?? null)) {
+            $parts[] = "External links: {$externalLinks}";
         }
 
         return implode("\n", $parts);
+    }
+
+    /**
+     * Render the references array, which stores entries as {type, content} objects.
+     */
+    private function formatReferences(mixed $value, int $limit = 8): ?string
+    {
+        if (! is_array($value) || $value === []) {
+            return null;
+        }
+
+        $parts = collect($value)
+            ->map(function (mixed $item): ?string {
+                if (is_array($item)) {
+                    return $this->cleanText($item['content'] ?? null);
+                }
+
+                return $this->cleanText(is_scalar($item) ? (string) $item : null);
+            })
+            ->filter()
+            ->take(max(1, $limit))
+            ->values()
+            ->all();
+
+        return $parts === [] ? null : implode("\n", $parts);
+    }
+
+    /**
+     * Render the external_links map (e.g. iNaturalist, RedList, YouTube) as a flat list.
+     */
+    private function formatExternalLinks(mixed $value): ?string
+    {
+        if (! is_array($value) || $value === []) {
+            return null;
+        }
+
+        $urls = [];
+
+        foreach ($value as $link) {
+            foreach ((array) $link as $url) {
+                if ($clean = $this->cleanText(is_scalar($url) ? (string) $url : null)) {
+                    $urls[] = $clean;
+                }
+            }
+        }
+
+        $urls = array_slice(array_values(array_unique($urls)), 0, 8);
+
+        return $urls === [] ? null : implode(', ', $urls);
     }
 
     private function formatStringArray(mixed $value, int $limit = 10): ?string
