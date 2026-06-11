@@ -35,9 +35,22 @@ return [
 
     'caching' => [
         'embeddings' => [
-            'cache' => false,
+            'cache' => env('AI_CACHE_EMBEDDINGS', true),
             'store' => env('CACHE_STORE', 'database'),
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Chat Model
+    |--------------------------------------------------------------------------
+    |
+    | Optional model override for the chat assistant. Leave AI_CHAT_MODEL unset
+    | to use the provider default; set a cheaper model to reduce API cost.
+    |
+    */
+    'chat' => [
+        'model' => env('AI_CHAT_MODEL'),
     ],
 
     /*

@@ -28,6 +28,9 @@ class ChatController extends Controller
 {
     private const GUEST_TOKEN_COOKIE = 'pk_guest_token';
 
+    /** Max recent conversation messages sent to the model (bounds input-token cost). */
+    private const HISTORY_MESSAGE_LIMIT = 12;
+
     private const CHART_SEARCHABLE_COLUMNS = [
         'scientific_name',
         'common_name_lao',
@@ -223,10 +226,14 @@ class ChatController extends Controller
             $request->session()->put('current_conversation_id', $conversationId);
 
             if (! $usesRememberedConversation) {
+                // Only send the most recent turns to the model to keep input tokens bounded.
                 $history = AgentConversationMessage::where('conversation_id', $conversationId)
-                    ->orderBy('created_at', 'asc')
+                    ->orderByDesc('created_at')
+                    ->limit(self::HISTORY_MESSAGE_LIMIT)
                     ->get()
+                    ->sortBy('created_at')
                     ->map(fn ($m) => $m->role === 'user' ? new UserMessage($m->content) : new AssistantMessage($m->content))
+                    ->values()
                     ->toArray();
             }
         } else {
@@ -268,7 +275,11 @@ class ChatController extends Controller
         try {
             // Token streaming (stream()) returns empty responses under php-fpm, so we
             // generate the full reply synchronously and deliver it as a single SSE chunk.
-            $reply = trim((string) $agent->prompt($message, $attachments));
+            $reply = trim((string) $agent->prompt(
+                $message,
+                $attachments,
+                model: config('ai.chat.model') ?: null,
+            ));
 
             if ($reply === '') {
                 $reply = 'Sorry, I could not generate a response. Please try again.';
@@ -510,7 +521,10 @@ class ChatController extends Controller
      */
     private function buildConversationHistory(Request $request): array
     {
-        $messages = $request->session()->get('chat_messages', []);
+        $messages = array_slice(
+            (array) $request->session()->get('chat_messages', []),
+            -self::HISTORY_MESSAGE_LIMIT
+        );
 
         return array_values(array_filter(array_map(function (array $msg) {
             $content = $this->sanitizeUtf8($msg['content'] ?? null);
