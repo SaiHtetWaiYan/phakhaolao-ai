@@ -52,6 +52,7 @@ class SpeciesImporter
 
         $useTypes = $this->aggregateNames($source, 'data.sub_uses', 'use_id', 'public.lut_use');
         $useUnits = $this->aggregateBilingualNames($source, 'data.sub_uses', 'use_id', 'public.lut_use');
+        $useGroups = $this->aggregateUseGroups($source);
         $habitats = $this->aggregateNames($source, 'data.sub_landscapes', 'landscape_id', 'public.lut_landscape');
         $seasons = $this->aggregateNames($source, 'data.sub_seasonals', 'month_id', 'public.lut_month');
         $distributions = $this->aggregateNames($source, 'data.sub_distributions', 'distribution_id', 'public.lut_distribution');
@@ -100,7 +101,7 @@ class SpeciesImporter
         $importedSourceIds = [];
 
         DB::transaction(function () use (
-            $rows, $dryRun, $useTypes, $useUnits, $habitats, $seasons, $distributions, $ntfpLists, $timberLists,
+            $rows, $dryRun, $useTypes, $useUnits, $useGroups, $habitats, $seasons, $distributions, $ntfpLists, $timberLists,
             $nutritionalValues, $landscapeUnits, $distributionUnits, $provinces, $relatives, $photos, $references,
             &$imported, &$changed, &$archived, &$importedSourceIds, $limit
         ) {
@@ -139,6 +140,7 @@ class SpeciesImporter
                     'landscape_units' => $landscapeUnits[$sid] ?? [],
                     'use_types' => $useTypes[$sid] ?? [],
                     'use_units' => $useUnits[$sid] ?? [],
+                    'use_groups' => $useGroups[$sid] ?? [],
                     'ntfp_lists' => $ntfpLists[$sid] ?? [],
                     'timber_lists' => $timberLists[$sid] ?? [],
                     'nutrition' => $this->buildNutrition($row, $nutritionalValues[$sid] ?? []),
@@ -330,6 +332,34 @@ class SpeciesImporter
 
                     if ($lao !== null) {
                         $items[$lao] = ['lao' => $lao, 'en' => $en];
+                    }
+                }
+
+                return array_values($items);
+            })
+            ->all();
+    }
+
+    /**
+     * Parent use groups (Human Body, Household, Community, Prohibitions) per species,
+     * derived from sub_uses -> lut_use -> lut_use_type, bilingually.
+     *
+     * @return array<int, array<int, array{lao: string, en: ?string}>>
+     */
+    private function aggregateUseGroups($source): array
+    {
+        return $source->table('data.sub_uses as su')
+            ->join('public.lut_use as u', 'u.id', '=', 'su.use_id')
+            ->join('public.lut_use_type as ut', 'ut.id', '=', 'u.id_use_type')
+            ->get(['su.id_specie', 'ut.name_la', 'ut.name_en'])
+            ->groupBy('id_specie')
+            ->map(function (Collection $g): array {
+                $items = [];
+
+                foreach ($g as $r) {
+                    $lao = $this->clean($r->name_la);
+                    if ($lao !== null) {
+                        $items[$lao] = ['lao' => $lao, 'en' => $this->clean($r->name_en)];
                     }
                 }
 
@@ -566,10 +596,29 @@ class SpeciesImporter
     /**
      * @param  array<string, mixed>  $data
      */
+    /**
+     * Fields that feed the embedding document (see EmbedSpecies::buildEmbeddingDocument).
+     * Only these affect the content hash, so adding derived filter/label columns
+     * (e.g. *_en, *_units, *_lists) does not needlessly trigger re-embedding.
+     *
+     * @var list<string>
+     */
+    private const EMBEDDING_FIELDS = [
+        'scientific_name', 'common_name_lao', 'common_name_english', 'family',
+        'iucn_status', 'native_status', 'invasiveness', 'use_description',
+        'botanical_description', 'global_distribution', 'lao_distribution',
+        'cultivation_info', 'market_data', 'management_info', 'threats', 'harvest_season',
+        'local_names', 'synonyms', 'related_species', 'habitat_types', 'use_types', 'nutrition',
+    ];
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
     private function hash(array $data): string
     {
-        ksort($data);
+        $core = array_intersect_key($data, array_flip(self::EMBEDDING_FIELDS));
+        ksort($core);
 
-        return md5(json_encode($data, JSON_UNESCAPED_UNICODE) ?: '');
+        return md5(json_encode($core, JSON_UNESCAPED_UNICODE) ?: '');
     }
 }

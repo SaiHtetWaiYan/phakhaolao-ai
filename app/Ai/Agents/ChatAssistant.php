@@ -81,6 +81,12 @@ class ChatAssistant implements Agent, Conversational, HasTools
           habitat="Upland fields"). Note "Birds", "Mammals", "Fish" etc. are subcategory values, not category.
           Do NOT use SearchSpecies for status/category filtering — its keyword matching can return the opposite
           value (e.g. searching "ຮຸກຮານ"/invasive wrongly matches "ບໍ່ຮຸກຮານ"/not invasive).
+        - "Use" is a real, filterable property. For questions like "recreational drug species", "medicinal
+          species", "edible/food species", "species used for construction/dye/ornamental", call FilterSpecies
+          with use_type set to that category (e.g. use_type="Recreational drugs", "Medicine", "Food"). These
+          are official use categories in the catalogue — do not assume a use type is missing; query it.
+          "Human Body", "Household", "Community", and "Prohibitions" are use GROUPS (each covers several use
+          types) — for those, use the use_group parameter instead of use_type.
         - Match the user's language exactly:
           - If the user writes in English, respond in English only.
           - If the user writes in Lao, respond in Lao only.
