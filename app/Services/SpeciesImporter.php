@@ -51,6 +51,7 @@ class SpeciesImporter
         $this->preloadLookups($source);
 
         $useTypes = $this->aggregateNames($source, 'data.sub_uses', 'use_id', 'public.lut_use');
+        $useUnits = $this->aggregateBilingualNames($source, 'data.sub_uses', 'use_id', 'public.lut_use');
         $habitats = $this->aggregateNames($source, 'data.sub_landscapes', 'landscape_id', 'public.lut_landscape');
         $seasons = $this->aggregateNames($source, 'data.sub_seasonals', 'month_id', 'public.lut_month');
         $distributions = $this->aggregateNames($source, 'data.sub_distributions', 'distribution_id', 'public.lut_distribution');
@@ -99,7 +100,7 @@ class SpeciesImporter
         $importedSourceIds = [];
 
         DB::transaction(function () use (
-            $rows, $dryRun, $useTypes, $habitats, $seasons, $distributions, $ntfpLists, $timberLists,
+            $rows, $dryRun, $useTypes, $useUnits, $habitats, $seasons, $distributions, $ntfpLists, $timberLists,
             $nutritionalValues, $landscapeUnits, $distributionUnits, $provinces, $relatives, $photos, $references,
             &$imported, &$changed, &$archived, &$importedSourceIds, $limit
         ) {
@@ -137,6 +138,7 @@ class SpeciesImporter
                     'habitat_types' => $habitats[$sid] ?? [],
                     'landscape_units' => $landscapeUnits[$sid] ?? [],
                     'use_types' => $useTypes[$sid] ?? [],
+                    'use_units' => $useUnits[$sid] ?? [],
                     'ntfp_lists' => $ntfpLists[$sid] ?? [],
                     'timber_lists' => $timberLists[$sid] ?? [],
                     'nutrition' => $this->buildNutrition($row, $nutritionalValues[$sid] ?? []),

@@ -28,7 +28,7 @@ class FilterSpecies implements Tool
         'native_status' => ['type' => 'scalar', 'lao' => 'native_status', 'en' => 'native_status_en'],
         'domestication' => ['type' => 'scalar', 'lao' => 'domestication', 'en' => 'domestication_en'],
         'status' => ['type' => 'scalar', 'lao' => 'data_status', 'en' => 'data_status_en'],
-        'use_type' => ['type' => 'json', 'lao' => 'use_types', 'en' => null],
+        'use_type' => ['type' => 'json_bilingual', 'lao' => 'use_units', 'en' => null],
         'ntfp' => ['type' => 'json_bilingual', 'lao' => 'ntfp_lists', 'en' => null],
         'timber' => ['type' => 'json_bilingual', 'lao' => 'timber_lists', 'en' => null],
         'habitat' => ['type' => 'json_bilingual', 'lao' => 'landscape_units', 'en' => null],

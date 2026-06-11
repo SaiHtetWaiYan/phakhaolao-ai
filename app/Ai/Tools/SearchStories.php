@@ -56,10 +56,14 @@ class SearchStories implements Tool
                 .'(e.g. farming, health, nutrition).';
         }
 
-        return $stories->map(fn (Story $s) => $this->format($s))->implode("\n---\n");
+        // A single match means a specific story — return its full text so the
+        // assistant can answer in detail. Broad searches return short snippets.
+        $full = $stories->count() === 1;
+
+        return $stories->map(fn (Story $s) => $this->format($s, $full))->implode("\n---\n");
     }
 
-    private function format(Story $story): string
+    private function format(Story $story, bool $full = false): string
     {
         $parts = ["**{$story->title}**"];
 
@@ -70,10 +74,12 @@ class SearchStories implements Tool
             $parts[] = 'Type: '.collect($story->story_types)->filter()->implode(', ');
         }
 
-        $body = $story->summary ?: $story->story;
-        if ($body) {
+        if ($full && $story->story) {
+            $parts[] = mb_strimwidth($story->story, 0, 9000, '...');
+        } elseif ($body = ($story->summary ?: $story->story)) {
             $parts[] = mb_strimwidth($body, 0, 500, '...');
         }
+
         if ($story->source_url) {
             $parts[] = "Read the full story: {$story->source_url}";
         }
