@@ -15,6 +15,7 @@ class LibraryResource extends Model
         'slug',
         'title',
         'author',
+        'publication_year',
         'description',
         'file_url',
         'resource_type',
@@ -37,6 +38,7 @@ class LibraryResource extends Model
         return [
             'source_id' => 'integer',
             'featured' => 'boolean',
+            'publication_year' => 'integer',
             'topics' => 'array',
             'provinces' => 'array',
             'source_modified_at' => 'datetime',

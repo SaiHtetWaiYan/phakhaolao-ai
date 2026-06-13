@@ -4,11 +4,13 @@ namespace App\Ai\Agents;
 
 use App\Ai\Tools\ExportSpecies;
 use App\Ai\Tools\FilterSpecies;
+use App\Ai\Tools\LibraryStats;
 use App\Ai\Tools\SearchChampions;
 use App\Ai\Tools\SearchLibrary;
 use App\Ai\Tools\SearchSpecies;
 use App\Ai\Tools\SearchStories;
 use App\Ai\Tools\SpeciesStats;
+use App\Ai\Tools\StoryStats;
 use App\Models\Species;
 use App\Support\RagSettings;
 use Illuminate\Database\Eloquent\Builder;
@@ -60,8 +62,18 @@ class ChatAssistant implements Agent, Conversational, HasTools
           Human Body/Household/Community/Prohibitions use use_group. Do NOT use SearchSpecies for status/category/
           use filtering — its keyword match can return the opposite value (e.g. invasive vs not-invasive).
         - Champions (people, companies, cooperatives, researchers featured by PhaKhaoLao): SearchChampions.
-        - Library (publications, books, reports, articles, guidelines): SearchLibrary — share the resource link.
-        - Stories / articles: SearchStories — share the link.
+        - Library (publications, books, reports, articles, guidelines): SearchLibrary. It supports AND-combined
+          keyword, topic, resource_type, resource_language, publication_year, and author filters plus sorting.
+          resource_language is the document language (Burmese, English, French, Khmer, Lao, Thai, or Vietnamese),
+          while language is only the English/Lao website record language. The keyword is optional. Share links
+          as short markdown links like [Download PDF](url) or [Open resource page](url) — never paste a raw or
+          long encoded URL as visible text.
+        - Library COUNTS ("how many books/Lao resources/reports in the library"): LibraryStats — it returns the
+          website's exact filter-bar counts by language, type, or topic. Pass language="en" for English users,
+          "lo" for Lao users (the two catalogues differ). Use SearchLibrary only for combined/keyword filtering.
+        - Stories / articles: SearchStories — filter by query and/or story_type (Farming, Health, Enterprise,
+          Sustainability, ...); share the link. Story COUNTS ("how many farming stories", "story categories"):
+          StoryStats — pass language="en"/"lo". Pass story type/category values in the user's language.
         - Export/download to Excel/CSV: ExportSpecies (may combine with a search in one reply).
         - A title or keyword may belong to any source. If one tool returns nothing, try the other search tools
           before saying it does not exist.
@@ -94,7 +106,9 @@ class ChatAssistant implements Agent, Conversational, HasTools
             new FilterSpecies,
             new SearchChampions,
             new SearchLibrary,
+            new LibraryStats,
             new SearchStories,
+            new StoryStats,
             new ExportSpecies,
         ], $this->similaritySearchTools());
     }

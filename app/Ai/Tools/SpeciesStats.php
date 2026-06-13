@@ -61,23 +61,6 @@ class SpeciesStats implements Tool
     ];
 
     /**
-     * English/Lao category mappings for the optional scope filter.
-     *
-     * @var array<string, string>
-     */
-    private const CATEGORY_MAP = [
-        'animal' => 'ສັດ',
-        'animals' => 'ສັດ',
-        'plant' => 'ພືດ',
-        'plants' => 'ພືດ',
-        'fungi' => 'ເຊື້ອເຫັດ',
-        'fungus' => 'ເຊື້ອເຫັດ',
-        'mushroom' => 'ເຊື້ອເຫັດ',
-        'mushrooms' => 'ເຊື້ອເຫັດ',
-        'algae' => 'ເທົາ',
-    ];
-
-    /**
      * Get the description of the tool's purpose.
      */
     public function description(): Stringable|string
@@ -103,12 +86,10 @@ class SpeciesStats implements Tool
         [$laoColumn, $enColumn] = self::DIMENSIONS[$dimension];
 
         $categoryInput = trim((string) ($request['category'] ?? ''));
-        $categoryFilter = $categoryInput !== ''
-            ? (self::CATEGORY_MAP[mb_strtolower($categoryInput)] ?? null)
-            : null;
+        $categoryFilter = $categoryInput !== '' ? $this->resolveCategory($categoryInput) : null;
 
         if ($categoryInput !== '' && $categoryFilter === null) {
-            return "Unknown category '{$categoryInput}'. Valid categories are: animal, plant, fungi, algae.";
+            return "Unknown category '{$categoryInput}'. Valid categories are: ".$this->validCategories().'.';
         }
 
         $base = Species::query()
@@ -163,6 +144,56 @@ class SpeciesStats implements Tool
         return $this->label($en, $lao);
     }
 
+    /**
+     * Resolve a free-text category (English or Lao, singular or plural) to its
+     * canonical Lao value using the categories that actually exist in the database.
+     */
+    private function resolveCategory(string $input): ?string
+    {
+        $input = mb_strtolower(trim($input));
+
+        foreach ($this->categoryPairs() as $pair) {
+            foreach ([$pair['lo'], $pair['en']] as $value) {
+                $value = mb_strtolower(trim($value));
+
+                if ($value !== '' && ($value === $input || $value === $input.'s' || $input === $value.'s')) {
+                    return $pair['lo'];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function validCategories(): string
+    {
+        $labels = collect($this->categoryPairs())
+            ->map(fn (array $pair) => $pair['en'] !== '' ? $pair['en'] : $pair['lo'])
+            ->filter()
+            ->implode(', ');
+
+        return $labels !== '' ? $labels : 'none available';
+    }
+
+    /**
+     * @return list<array{lo: string, en: string}>
+     */
+    private function categoryPairs(): array
+    {
+        return Species::query()
+            ->where('scrape_status', 'scraped')
+            ->whereNotNull('category')
+            ->where('category', '!=', '')
+            ->select('category', 'category_en')
+            ->distinct()
+            ->get()
+            ->map(fn (Species $s): array => [
+                'lo' => (string) $s->category,
+                'en' => (string) ($s->category_en ?? ''),
+            ])
+            ->all();
+    }
+
     private function label(?string $english, string $lao): string
     {
         $english = $english !== null ? trim($english) : null;
@@ -181,7 +212,7 @@ class SpeciesStats implements Tool
                 ->description('What to group by: category, subcategory, family, iucn_status, national_conservation_status, native_status, or invasiveness. Defaults to category.'),
             'category' => $schema
                 ->string()
-                ->description('Optional scope filter to one top-level category (animal, plant, fungi, or algae).'),
+                ->description('Optional scope filter to one top-level category (e.g. animal, plant, or fungi).'),
         ];
     }
 }

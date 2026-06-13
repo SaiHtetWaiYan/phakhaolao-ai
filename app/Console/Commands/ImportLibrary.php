@@ -45,6 +45,8 @@ class ImportLibrary extends Command
                 ['Imported (en + lo)', $result['imported']],
                 ['Changed', $result['changed']],
                 ['Archived (removed from source)', $result['archived']],
+                ['Filter pages synced', $result['filters_synced']],
+                ['Filter pages failed', $result['filters_failed']],
             ]);
         }
 

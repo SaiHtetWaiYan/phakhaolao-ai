@@ -26,34 +26,43 @@ class SearchStories implements Tool
     public function description(): Stringable|string
     {
         return 'Search the PhaKhaoLao stories — articles and field stories about Lao agrobiodiversity, '
-            .'farming, health, nutrition, culture, and communities. Search by title, author, story type '
-            .'(e.g. farming, health), or any keyword. Returns the story with a summary and a link to read it.';
+            .'farming, health, nutrition, culture, and communities. Filter by query (title/author/keyword) '
+            .'and/or story_type (the category: Farming, Health, Enterprise, Culture and local knowledge, '
+            .'Sustainability, Research and Education, Policy, ...). At least one of query or story_type is '
+            .'required. Pass language="en" or "lo" to match the user\'s language. Returns the story with a '
+            .'summary and a link to read it.';
     }
 
     public function handle(Request $request): Stringable|string
     {
         $query = trim((string) ($request['query'] ?? ''));
+        $type = trim((string) ($request['story_type'] ?? ''));
         $language = strtolower(trim((string) ($request['language'] ?? '')));
 
-        if ($query === '') {
-            return 'Please provide a search term (a topic, title, author, or story type).';
+        if ($query === '' && $type === '') {
+            return 'Please provide a search term or a story_type (e.g. Farming, Health, Enterprise).';
         }
+
+        $lowerQuery = mb_strtolower($query);
 
         $stories = Story::query()
             ->when(in_array($language, ['en', 'lo'], true), fn (Builder $q) => $q->where('language', $language))
-            ->where(function (Builder $outer) use ($query): void {
+            ->when($query !== '', fn (Builder $q) => $q->where(function (Builder $outer) use ($lowerQuery): void {
                 foreach (self::TEXT_COLUMNS as $column) {
-                    $outer->orWhere($column, 'like', "%{$query}%");
+                    $outer->orWhereRaw("lower({$column}) like ?", ["%{$lowerQuery}%"]);
                 }
-                $outer->orWhereRaw('story_types::text ilike ?', ["%{$query}%"]);
-            })
-            ->orderByRaw('CASE WHEN title ilike ? THEN 0 ELSE 1 END', ["%{$query}%"])
+                $outer->orWhereRaw('lower(cast(story_types as text)) like ?', ["%{$lowerQuery}%"]);
+            }))
+            ->when($type !== '', fn (Builder $q) => $q->whereRaw('lower(cast(story_types as text)) like ?', ['%'.mb_strtolower($type).'%']))
+            ->when($query !== '', fn (Builder $q) => $q->orderByRaw('CASE WHEN lower(title) like ? THEN 0 ELSE 1 END', ["%{$lowerQuery}%"]))
             ->limit(self::LIMIT)
             ->get();
 
         if ($stories->isEmpty()) {
-            return "No stories found matching '{$query}'. Try a topic, an author, or a story type "
-                .'(e.g. farming, health, nutrition).';
+            $criteria = $query !== '' ? "'{$query}'" : "type '{$type}'";
+
+            return "No stories found matching {$criteria}. Try a topic, an author, or a story type "
+                .'(e.g. Farming, Health, Enterprise).';
         }
 
         // A single match means a specific story — return its full text so the
@@ -81,7 +90,7 @@ class SearchStories implements Tool
         }
 
         if ($story->source_url) {
-            $parts[] = "Read the full story: {$story->source_url}";
+            $parts[] = "[Read the full story]({$story->source_url})";
         }
 
         return implode("\n", $parts);
@@ -92,8 +101,10 @@ class SearchStories implements Tool
         return [
             'query' => $schema
                 ->string()
-                ->description('Search term: topic, title, author, story type, or keyword.')
-                ->required(),
+                ->description('Search term: topic, title, author, or keyword. Optional if story_type is given.'),
+            'story_type' => $schema
+                ->string()
+                ->description('Story category, e.g. Farming, Health, Enterprise, Culture and local knowledge, Sustainability.'),
             'language' => $schema
                 ->string()
                 ->description('Optional language to restrict results to: "en" or "lo". Match the user\'s language.'),

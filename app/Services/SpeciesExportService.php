@@ -72,43 +72,6 @@ class SpeciesExportService
     ];
 
     /**
-     * @var array<string, string>
-     */
-    private const CATEGORY_MAP = [
-        'animal' => 'ສັດ',
-        'animals' => 'ສັດ',
-        'plant' => 'ພືດ',
-        'plants' => 'ພືດ',
-        'fungi' => 'ເຊື້ອເຫັດ',
-        'fungus' => 'ເຊື້ອເຫັດ',
-        'mushroom' => 'ເຊື້ອເຫັດ',
-        'mushrooms' => 'ເຊື້ອເຫັດ',
-        'ສັດ' => 'ສັດ',
-        'ພືດ' => 'ພືດ',
-        'ເຊື້ອເຫັດ' => 'ເຊື້ອເຫັດ',
-    ];
-
-    /**
-     * @var array<string, string>
-     */
-    private const SUBCATEGORY_MAP = [
-        'fish' => 'ປາ',
-        'fishes' => 'ປາ',
-        'bird' => 'ສັດປີກ',
-        'birds' => 'ສັດປີກ',
-        'mammal' => 'ສັດລ້ຽງລູກດ້ວຍນົມ',
-        'mammals' => 'ສັດລ້ຽງລູກດ້ວຍນົມ',
-        'reptile' => 'ສັດເລືອຄານ',
-        'reptiles' => 'ສັດເລືອຄານ',
-        'amphibian' => 'ສັດເຄິ່ງບົກເຄິ່ງນ້ຳ',
-        'amphibians' => 'ສັດເຄິ່ງບົກເຄິ່ງນ້ຳ',
-        'insect' => 'ແມງໄມ້',
-        'insects' => 'ແມງໄມ້',
-        'tree' => 'ໄມ້ຢືນຕົ້ນ',
-        'trees' => 'ໄມ້ຢືນຕົ້ນ',
-    ];
-
-    /**
      * Generate an Excel export and return [token, count, type].
      *
      * @param  array{query:string,category:string,subcategory:string,columns:string}  $params
@@ -298,24 +261,44 @@ class SpeciesExportService
 
     private function resolveCategory(string $value): ?string
     {
-        if ($value === '') {
-            return null;
-        }
-
-        $lower = mb_strtolower($value);
-
-        return self::CATEGORY_MAP[$lower] ?? null;
+        return $this->resolveTaxon($value, 'category');
     }
 
     private function resolveSubcategory(string $value): ?string
     {
-        if ($value === '') {
+        return $this->resolveTaxon($value, 'subcategory');
+    }
+
+    /**
+     * Resolve a free-text taxon (English or Lao, singular or plural) to its
+     * canonical Lao value using the values that exist in the database.
+     */
+    private function resolveTaxon(string $value, string $column): ?string
+    {
+        $input = mb_strtolower(trim($value));
+
+        if ($input === '') {
             return null;
         }
 
-        $lower = mb_strtolower($value);
+        $rows = Species::query()
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->select($column, "{$column}_en")
+            ->distinct()
+            ->get();
 
-        return self::SUBCATEGORY_MAP[$lower] ?? null;
+        foreach ($rows as $row) {
+            foreach ([$row->{$column}, $row->{"{$column}_en"}] as $candidate) {
+                $candidate = mb_strtolower(trim((string) $candidate));
+
+                if ($candidate !== '' && ($candidate === $input || $candidate === $input.'s' || $input === $candidate.'s')) {
+                    return (string) $row->{$column};
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

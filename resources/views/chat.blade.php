@@ -151,7 +151,7 @@
                                         </div>
                                     @endif
                                     @if($msg['content'])
-                                        <div class="px-1 py-0.5 whitespace-pre-wrap">{{ $msg['content'] }}</div>
+                                        <div class="px-1 py-0.5 whitespace-pre-wrap [overflow-wrap:anywhere] break-words">{{ $msg['content'] }}</div>
                                     @endif
                                 </div>
                             </div>
@@ -496,7 +496,7 @@ document.addEventListener('DOMContentLoaded', function () {
             content += `<div class="px-1 py-0.5 whitespace-pre-wrap">${escapeHtml(text)}</div>`;
         }
 
-        div.innerHTML = `<div class="max-w-[85%] md:max-w-[75%] px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white text-[15px] leading-relaxed shadow-sm">${content}</div>`;
+        div.innerHTML = `<div class="max-w-[85%] md:max-w-[75%] px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white text-[15px] leading-relaxed shadow-sm [overflow-wrap:anywhere] break-words">${content}</div>`;
         messagesContainer.appendChild(div);
         scrollToBottom();
     }
@@ -830,5 +830,8 @@ document.addEventListener('DOMContentLoaded', function () {
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e4e4e7; border-radius: 20px; }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3f3f46; }
+/* Break long URLs/words so a message never forces horizontal scroll. */
+.prose, .prose a, .whitespace-pre-wrap { overflow-wrap: anywhere; word-break: break-word; }
+.prose pre { overflow-x: auto; max-width: 100%; }
 </style>
 @endsection

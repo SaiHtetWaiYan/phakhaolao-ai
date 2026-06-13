@@ -16,7 +16,10 @@ function fakeResourcePost(int $id, string $title): array
         'modified' => '2026-05-25T08:40:54',
         'title' => ['rendered' => $title],
         'content' => ['rendered' => '<p>An important <strong>NTFP</strong> reference.</p>'],
-        'acf' => [],
+        'acf' => [
+            'pkl_resource_author' => 'Rachele Arcese',
+            'pkl_resource_year' => '2025.',
+        ],
         '_embedded' => [
             'wp:term' => [
                 [['taxonomy' => 'resource-type', 'name' => 'Book, book chapter']],
@@ -41,10 +44,13 @@ it('imports library resources from the WordPress REST API', function () {
     $result = app(LibraryImporter::class)->import();
 
     expect($result['imported'])->toBe(2);
+    expect($result['filters_failed'])->toBe(2);
     expect(LibraryResource::where('language', 'en')->count())->toBe(1);
 
     $resource = LibraryResource::where('source_id', 100)->first();
     expect($resource->title)->toBe('Herbarium of NTFPs');
+    expect($resource->author)->toBe('Rachele Arcese');
+    expect($resource->publication_year)->toBe(2025);
     expect($resource->resource_type)->toBe('Book, book chapter');
     expect($resource->resource_language)->toBe('English');
     expect($resource->featured)->toBeTrue();

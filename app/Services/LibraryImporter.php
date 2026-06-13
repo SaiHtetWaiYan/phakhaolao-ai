@@ -19,10 +19,11 @@ class LibraryImporter
 
     public function __construct(
         private readonly WordPressClient $client = new WordPressClient,
+        private readonly LibraryFilterCatalog $filterCatalog = new LibraryFilterCatalog,
     ) {}
 
     /**
-     * @return array{imported: int, changed: int, archived: int}
+     * @return array{imported: int, changed: int, archived: int, filters_synced: int, filters_failed: int}
      */
     public function import(bool $dryRun = false): array
     {
@@ -64,7 +65,17 @@ class LibraryImporter
             $archived = LibraryResource::query()->whereNotIn('source_id', $seenSourceIds)->delete();
         }
 
-        return ['imported' => $imported, 'changed' => $changed, 'archived' => $archived];
+        $filters = $dryRun
+            ? ['synced' => 0, 'failed' => 0]
+            : $this->filterCatalog->syncAll();
+
+        return [
+            'imported' => $imported,
+            'changed' => $changed,
+            'archived' => $archived,
+            'filters_synced' => $filters['synced'],
+            'filters_failed' => $filters['failed'],
+        ];
     }
 
     /**
@@ -89,6 +100,7 @@ class LibraryImporter
                 $changes = array_filter([
                     'file_url' => $this->parsePdfLink($html),
                     'author' => $this->parseAuthor($html, $resource->title),
+                    'publication_year' => $this->parsePublicationYear($html),
                 ], fn ($v) => $v !== null);
 
                 if ($changes !== []) {
@@ -115,6 +127,15 @@ class LibraryImporter
     {
         if (preg_match('#href="(https://phakhaolao\.la/wp-content/uploads/[^"]+\.(?:pdf|docx?|xlsx?|pptx?|zip))"#i', $html, $m) === 1) {
             return $m[1];
+        }
+
+        return null;
+    }
+
+    private function parsePublicationYear(string $html): ?int
+    {
+        if (preg_match('/published\s+in\s+((?:19|20)\d{2})/i', $html, $m) === 1) {
+            return (int) $m[1];
         }
 
         return null;
@@ -152,11 +173,13 @@ class LibraryImporter
     private function mapPost(array $post, string $lang): array
     {
         $terms = $this->extractTerms($post);
+        $author = $this->clean(Arr::get($post, 'acf.pkl_resource_author'));
 
-        return [
+        $data = [
             'language' => $lang,
             'slug' => $this->clean($post['slug'] ?? null),
             'title' => $this->htmlText(Arr::get($post, 'title.rendered')) ?? 'Untitled',
+            'publication_year' => $this->publicationYear(Arr::get($post, 'acf.pkl_resource_year')),
             'description' => $this->htmlText(Arr::get($post, 'content.rendered')),
             'resource_type' => Arr::first($terms['resource-type'] ?? []),
             'resource_language' => Arr::first($terms['language'] ?? []),
@@ -168,5 +191,24 @@ class LibraryImporter
             'source_url' => $this->clean($post['link'] ?? null),
             'source_modified_at' => $this->clean($post['modified'] ?? null),
         ];
+
+        // Preserve an author found by detail-page enrichment when the REST API
+        // does not expose the ACF author field.
+        if ($author !== null) {
+            $data['author'] = $author;
+        }
+
+        return $data;
+    }
+
+    private function publicationYear(mixed $value): ?int
+    {
+        if (! is_scalar($value)) {
+            return null;
+        }
+
+        return preg_match('/\b(19|20)\d{2}\b/', (string) $value, $matches) === 1
+            ? (int) $matches[0]
+            : null;
     }
 }
