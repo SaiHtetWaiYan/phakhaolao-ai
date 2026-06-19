@@ -131,7 +131,7 @@ class LibraryPdfIndexer
         try {
             $body = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
                 ->timeout(60)
-                ->get($url)
+                ->get($this->encodeUrl($url))
                 ->throw()
                 ->body();
         } catch (Throwable) {
@@ -152,6 +152,38 @@ class LibraryPdfIndexer
     private function storagePath(LibraryResource $resource): string
     {
         return 'library-pdfs/'.$resource->id.'.pdf';
+    }
+
+    /**
+     * Percent-encode each path segment so URLs with raw non-ASCII characters
+     * (e.g. Lao filenames) download correctly. Idempotent for already-encoded URLs.
+     */
+    private function encodeUrl(string $url): string
+    {
+        $parts = parse_url($url);
+
+        if ($parts === false || ! isset($parts['path'])) {
+            return $url;
+        }
+
+        $path = implode('/', array_map(
+            fn (string $segment): string => rawurlencode(rawurldecode($segment)),
+            explode('/', $parts['path'])
+        ));
+
+        $encoded = ($parts['scheme'] ?? 'https').'://'.($parts['host'] ?? '');
+
+        if (isset($parts['port'])) {
+            $encoded .= ':'.$parts['port'];
+        }
+
+        $encoded .= $path;
+
+        if (isset($parts['query'])) {
+            $encoded .= '?'.$parts['query'];
+        }
+
+        return $encoded;
     }
 
     private function extractText(string $body): string
