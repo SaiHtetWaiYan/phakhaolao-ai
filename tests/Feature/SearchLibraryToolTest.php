@@ -99,6 +99,18 @@ it('normalizes every website document language code', function (string $code, st
     ['vi', 'Vietnamese'],
 ]);
 
+it('ignores a zero publication_year filter from the model', function () {
+    createLibraryResource(['title' => 'Strobilanthes Checklist', 'publication_year' => 2021]);
+
+    // The model often passes 0 for an unspecified integer; it must not filter to year=0.
+    $result = (new SearchLibrary)->handle(new Request([
+        'query' => 'Strobilanthes',
+        'publication_year' => 0,
+    ]));
+
+    expect($result)->toContain('Strobilanthes Checklist');
+});
+
 it('requires a keyword or filter', function () {
     $result = (new SearchLibrary)->handle(new Request([]));
 

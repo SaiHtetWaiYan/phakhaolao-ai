@@ -49,7 +49,9 @@ class SearchLibrary implements Tool
         $type = trim((string) ($request['resource_type'] ?? ''));
         $languageRaw = trim((string) ($request['resource_language'] ?? ''));
         $documentLanguage = $languageRaw === '' ? '' : $this->normalizeLanguage($languageRaw);
-        $year = is_numeric($request['publication_year'] ?? null) ? (int) $request['publication_year'] : null;
+        $year = (is_numeric($request['publication_year'] ?? null) && (int) $request['publication_year'] > 0)
+            ? (int) $request['publication_year']
+            : null;
         $author = trim((string) ($request['author'] ?? ''));
         $pageLanguage = trim((string) ($request['language'] ?? ''));
         $sort = strtolower(trim((string) ($request['sort'] ?? '')));
