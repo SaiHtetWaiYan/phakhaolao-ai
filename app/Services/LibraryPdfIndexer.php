@@ -52,6 +52,11 @@ class LibraryPdfIndexer
         }
 
         $chunks = self::chunkText($text, $this->chunkSize);
+
+        if ($chunks === []) {
+            return $this->markStatus($resource, 'no_text');
+        }
+
         $embeddings = $this->embed($chunks);
 
         $resource->chunks()->delete();
