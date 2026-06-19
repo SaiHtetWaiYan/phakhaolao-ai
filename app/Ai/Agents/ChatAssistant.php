@@ -7,6 +7,7 @@ use App\Ai\Tools\FilterSpecies;
 use App\Ai\Tools\LibraryStats;
 use App\Ai\Tools\SearchChampions;
 use App\Ai\Tools\SearchLibrary;
+use App\Ai\Tools\SearchLibraryContent;
 use App\Ai\Tools\SearchSpecies;
 use App\Ai\Tools\SearchStories;
 use App\Ai\Tools\SpeciesStats;
@@ -71,6 +72,9 @@ class ChatAssistant implements Agent, Conversational, HasTools
         - Library COUNTS ("how many books/Lao resources/reports in the library"): LibraryStats — it returns the
           website's exact filter-bar counts by language, type, or topic. Pass language="en" for English users,
           "lo" for Lao users (the two catalogues differ). Use SearchLibrary only for combined/keyword filtering.
+        - Library document CONTENTS ("what does the library say about X", facts/findings inside a publication):
+          SearchLibraryContent — full-text search inside the PDFs. Use SearchLibrary to find a document by
+          title/type; use SearchLibraryContent to answer from what the documents actually say.
         - Stories / articles: SearchStories — filter by query and/or story_type (Farming, Health, Enterprise,
           Sustainability, ...); share the link. Story COUNTS ("how many farming stories", "story categories"):
           StoryStats — pass language="en"/"lo". Pass story type/category values in the user's language.
@@ -100,7 +104,7 @@ class ChatAssistant implements Agent, Conversational, HasTools
      */
     public function tools(): iterable
     {
-        return array_merge([
+        $tools = [
             new SearchSpecies,
             new SpeciesStats,
             new FilterSpecies,
@@ -110,7 +114,13 @@ class ChatAssistant implements Agent, Conversational, HasTools
             new SearchStories,
             new StoryStats,
             new ExportSpecies,
-        ], $this->similaritySearchTools());
+        ];
+
+        if (Schema::hasTable('library_chunks')) {
+            $tools[] = new SearchLibraryContent;
+        }
+
+        return array_merge($tools, $this->similaritySearchTools());
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LibraryResource extends Model
 {
@@ -28,7 +29,18 @@ class LibraryResource extends Model
         'source_url',
         'source_modified_at',
         'content_hash',
+        'pdf_status',
+        'pdf_text_hash',
+        'pdf_indexed_at',
     ];
+
+    /**
+     * @return HasMany<LibraryChunk, $this>
+     */
+    public function chunks(): HasMany
+    {
+        return $this->hasMany(LibraryChunk::class);
+    }
 
     /**
      * @return array<string, string>
@@ -42,6 +54,7 @@ class LibraryResource extends Model
             'topics' => 'array',
             'provinces' => 'array',
             'source_modified_at' => 'datetime',
+            'pdf_indexed_at' => 'datetime',
         ];
     }
 }
