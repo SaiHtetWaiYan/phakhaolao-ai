@@ -47,12 +47,18 @@ class SearchStories implements Tool
 
         $stories = Story::query()
             ->when(in_array($language, ['en', 'lo'], true), fn (Builder $q) => $q->where('language', $language))
-            ->when($query !== '', fn (Builder $q) => $q->where(function (Builder $outer) use ($lowerQuery): void {
-                foreach (self::TEXT_COLUMNS as $column) {
-                    $outer->orWhereRaw("lower({$column}) like ?", ["%{$lowerQuery}%"]);
+            ->when($query !== '', function (Builder $q) use ($query): void {
+                // Match every word (AND) across the text columns so multi-word
+                // queries still match when the words are not contiguous.
+                foreach ($this->queryWords($query) as $word) {
+                    $q->where(function (Builder $outer) use ($word): void {
+                        foreach (self::TEXT_COLUMNS as $column) {
+                            $outer->orWhereRaw("lower({$column}) like ?", ['%'.$word.'%']);
+                        }
+                        $outer->orWhereRaw('lower(cast(story_types as text)) like ?', ['%'.$word.'%']);
+                    });
                 }
-                $outer->orWhereRaw('lower(cast(story_types as text)) like ?', ["%{$lowerQuery}%"]);
-            }))
+            })
             ->when($type !== '', fn (Builder $q) => $q->whereRaw('lower(cast(story_types as text)) like ?', ['%'.mb_strtolower($type).'%']))
             ->when($query !== '', fn (Builder $q) => $q->orderByRaw('CASE WHEN lower(title) like ? THEN 0 ELSE 1 END', ["%{$lowerQuery}%"]))
             ->limit(self::LIMIT)
@@ -70,6 +76,19 @@ class SearchStories implements Tool
         $full = $stories->count() === 1;
 
         return $stories->map(fn (Story $s) => $this->format($s, $full))->implode("\n---\n");
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function queryWords(string $query): array
+    {
+        $words = array_values(array_filter(
+            preg_split('/\s+/u', mb_strtolower(trim($query))) ?: [],
+            fn (string $word): bool => mb_strlen($word) >= 2
+        ));
+
+        return $words === [] ? [mb_strtolower(trim($query))] : $words;
     }
 
     private function format(Story $story, bool $full = false): string

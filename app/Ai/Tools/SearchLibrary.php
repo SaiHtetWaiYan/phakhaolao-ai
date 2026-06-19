@@ -59,10 +59,16 @@ class SearchLibrary implements Tool
         }
 
         $builder = LibraryResource::query()
-            ->when($query !== '', fn (Builder $q) => $q->where(function (Builder $w) use ($query): void {
-                $this->whereLike($w, 'title', $query);
-                $w->orWhereRaw('lower(description) like ?', ['%'.mb_strtolower($query).'%']);
-            }))
+            ->when($query !== '', function (Builder $q) use ($query): void {
+                // Match every word (AND) across title/description so multi-word
+                // queries like a full document title still match.
+                foreach ($this->queryWords($query) as $word) {
+                    $q->where(function (Builder $w) use ($word): void {
+                        $w->whereRaw('lower(title) like ?', ['%'.$word.'%'])
+                            ->orWhereRaw('lower(description) like ?', ['%'.$word.'%']);
+                    });
+                }
+            })
             ->when($topic !== '', fn (Builder $q) => $q->whereRaw('lower(cast(topics as text)) like ?', ['%'.mb_strtolower($topic).'%']))
             ->when($type !== '', fn (Builder $q) => $this->whereLike($q, 'resource_type', $type))
             ->when($documentLanguage !== '', fn (Builder $q) => $this->whereLike($q, 'resource_language', $documentLanguage))
@@ -107,6 +113,22 @@ class SearchLibrary implements Tool
             'title_desc' => $builder->orderByDesc('title'),
             default => $builder->orderByDesc('featured')->orderBy('title'),
         };
+    }
+
+    /**
+     * Split a query into matchable words, dropping very short tokens. Falls back
+     * to the whole query when nothing meaningful remains.
+     *
+     * @return list<string>
+     */
+    private function queryWords(string $query): array
+    {
+        $words = array_values(array_filter(
+            preg_split('/\s+/u', mb_strtolower(trim($query))) ?: [],
+            fn (string $word): bool => mb_strlen($word) >= 2
+        ));
+
+        return $words === [] ? [mb_strtolower(trim($query))] : $words;
     }
 
     private function normalizeLanguage(string $value): string
