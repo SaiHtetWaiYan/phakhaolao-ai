@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\LibraryResource;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Embeddings;
 use Smalot\PdfParser\Parser;
 use Throwable;
@@ -28,13 +29,9 @@ class LibraryPdfIndexer
             return $this->markStatus($resource, 'skipped');
         }
 
-        try {
-            $body = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
-                ->timeout(60)
-                ->get($url)
-                ->throw()
-                ->body();
-        } catch (Throwable) {
+        $body = $this->fetchPdf($resource, $url);
+
+        if ($body === null) {
             return $this->markStatus($resource, 'failed');
         }
 
@@ -108,6 +105,48 @@ class LibraryPdfIndexer
         }
 
         return $chunks;
+    }
+
+    /**
+     * Fetch the PDF, saving it under storage/app/library-pdfs and reusing a
+     * previously downloaded copy so re-runs never re-download. Returns null on
+     * a failed download.
+     */
+    private function fetchPdf(LibraryResource $resource, string $url): ?string
+    {
+        $path = $this->storagePath($resource);
+        $disk = Storage::disk('local');
+
+        if ($disk->exists($path)) {
+            $existing = $disk->get($path);
+
+            if (is_string($existing) && $existing !== '') {
+                return $existing;
+            }
+        }
+
+        try {
+            $body = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
+                ->timeout(60)
+                ->get($url)
+                ->throw()
+                ->body();
+        } catch (Throwable) {
+            return null;
+        }
+
+        if ($body === '') {
+            return null;
+        }
+
+        $disk->put($path, $body);
+
+        return $body;
+    }
+
+    private function storagePath(LibraryResource $resource): string
+    {
+        return 'library-pdfs/'.$resource->id.'.pdf';
     }
 
     private function extractText(string $body): string
