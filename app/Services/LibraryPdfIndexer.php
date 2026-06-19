@@ -14,6 +14,7 @@ class LibraryPdfIndexer
     public function __construct(
         private readonly int $chunkSize = 1200,
         private readonly int $dimensions = 1536,
+        private readonly bool $store = true,
     ) {}
 
     /**
@@ -117,7 +118,7 @@ class LibraryPdfIndexer
         $path = $this->storagePath($resource);
         $disk = Storage::disk('local');
 
-        if ($disk->exists($path)) {
+        if ($this->store && $disk->exists($path)) {
             $existing = $disk->get($path);
 
             if (is_string($existing) && $existing !== '') {
@@ -139,7 +140,9 @@ class LibraryPdfIndexer
             return null;
         }
 
-        $disk->put($path, $body);
+        if ($this->store) {
+            $disk->put($path, $body);
+        }
 
         return $body;
     }

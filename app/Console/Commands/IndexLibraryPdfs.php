@@ -15,7 +15,8 @@ class IndexLibraryPdfs extends Command
         {--retry-failed : Also retry resources previously marked failed/no_text}
         {--delay=1500 : Delay between PDFs in milliseconds (be polite to the host)}
         {--chunk-size=1200 : Characters per text chunk}
-        {--dimensions=1536 : Embedding vector dimensions}';
+        {--dimensions=1536 : Embedding vector dimensions}
+        {--no-store : Do not save PDFs to disk (download to memory and discard)}';
 
     protected $description = 'Download library PDFs, extract their text, and embed it for full-text search';
 
@@ -32,6 +33,7 @@ class IndexLibraryPdfs extends Command
         $indexer = new LibraryPdfIndexer(
             chunkSize: max(200, (int) $this->option('chunk-size')),
             dimensions: max(1, (int) $this->option('dimensions')),
+            store: ! $this->option('no-store'),
         );
 
         $query = LibraryResource::query()
