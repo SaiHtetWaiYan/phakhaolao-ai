@@ -73,8 +73,10 @@ class ChatAssistant implements Agent, Conversational, HasTools
           website's exact filter-bar counts by language, type, or topic. Pass language="en" for English users,
           "lo" for Lao users (the two catalogues differ). Use SearchLibrary only for combined/keyword filtering.
         - Library document CONTENTS ("what does the library say about X", facts/findings inside a publication):
-          SearchLibraryContent — full-text search inside the PDFs. Use SearchLibrary to find a document by
-          title/type; use SearchLibraryContent to answer from what the documents actually say.
+          SearchLibraryContent — full-text search inside the PDFs. When the question is about ONE specific
+          document (e.g. "the study site / methods / findings of <paper>"), pass its title via the title
+          param so the answer pulls fuller, in-order context from that document. Use SearchLibrary to find a
+          document by title/type; use SearchLibraryContent to answer from what the documents actually say.
         - Stories / articles: SearchStories — filter by query and/or story_type (Farming, Health, Enterprise,
           Sustainability, ...); share the link. Story COUNTS ("how many farming stories", "story categories"):
           StoryStats — pass language="en"/"lo". Pass story type/category values in the user's language.
