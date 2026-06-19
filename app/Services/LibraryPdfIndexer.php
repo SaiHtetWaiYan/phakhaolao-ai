@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\LibraryResource;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Embeddings;
 use Smalot\PdfParser\Config as PdfConfig;
@@ -155,18 +156,69 @@ class LibraryPdfIndexer
 
     private function extractText(string $body): string
     {
+        // Prefer pdftotext (poppler): it streams and stays within bounded memory,
+        // where smalot/pdfparser can exhaust gigabytes on some compressed streams.
+        $text = $this->pdftotextBinary() !== null
+            ? $this->extractWithPdftotext($body)
+            : $this->extractWithSmalot($body);
+
+        return trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
+    }
+
+    private function extractWithPdftotext(string $body): string
+    {
+        $binary = $this->pdftotextBinary();
+
+        if ($binary === null) {
+            return '';
+        }
+
+        $tmp = tempnam(sys_get_temp_dir(), 'pkl_pdf_');
+
+        if ($tmp === false) {
+            return '';
+        }
+
+        try {
+            file_put_contents($tmp, $body);
+            $result = Process::timeout(120)->run([$binary, '-q', '-enc', 'UTF-8', $tmp, '-']);
+
+            return $result->successful() ? $result->output() : '';
+        } catch (Throwable) {
+            return '';
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
+    private function extractWithSmalot(string $body): string
+    {
         try {
             // Discarding image content keeps memory bounded on image-heavy PDFs.
             $config = new PdfConfig;
             $config->setRetainImageContent(false);
 
-            $document = (new Parser([], $config))->parseContent($body);
-            $text = $document->getText();
+            return (new Parser([], $config))->parseContent($body)->getText();
         } catch (Throwable) {
             return '';
         }
+    }
 
-        return trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
+    private function pdftotextBinary(): ?string
+    {
+        static $binary = false;
+
+        if ($binary !== false) {
+            return $binary;
+        }
+
+        foreach (['/opt/homebrew/bin/pdftotext', '/usr/local/bin/pdftotext', '/usr/bin/pdftotext'] as $path) {
+            if (is_executable($path)) {
+                return $binary = $path;
+            }
+        }
+
+        return $binary = null;
     }
 
     /**
