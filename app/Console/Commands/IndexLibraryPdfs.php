@@ -22,6 +22,10 @@ class IndexLibraryPdfs extends Command
 
     public function handle(): int
     {
+        // Parsing large PDFs is memory-hungry; a memory fatal cannot be caught,
+        // so raise the ceiling to avoid losing the batch mid-run.
+        ini_set('memory_limit', '1024M');
+
         if (Schema::getConnection()->getDriverName() !== 'pgsql' || ! Schema::hasColumn('library_chunks', 'embedding')) {
             $this->error('library_chunks.embedding (pgvector) was not found. Run the migration on PostgreSQL first.');
 

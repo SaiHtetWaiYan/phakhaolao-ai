@@ -6,6 +6,7 @@ use App\Models\LibraryResource;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Embeddings;
+use Smalot\PdfParser\Config as PdfConfig;
 use Smalot\PdfParser\Parser;
 use Throwable;
 
@@ -155,7 +156,11 @@ class LibraryPdfIndexer
     private function extractText(string $body): string
     {
         try {
-            $document = (new Parser)->parseContent($body);
+            // Discarding image content keeps memory bounded on image-heavy PDFs.
+            $config = new PdfConfig;
+            $config->setRetainImageContent(false);
+
+            $document = (new Parser([], $config))->parseContent($body);
             $text = $document->getText();
         } catch (Throwable) {
             return '';
