@@ -29,6 +29,14 @@ class TtsController extends Controller
             abort(422, 'No text to speak.');
         }
 
+        // Cache identical text on disk so repeated/replayed sentences are instant
+        // and don't re-bill the TTS provider.
+        $cacheFile = storage_path('app/tts-cache/'.md5(config('tts.provider').'|'.$text).'.mp3');
+
+        if (is_file($cacheFile) && filesize($cacheFile) > 0) {
+            return $this->audioResponse((string) file_get_contents($cacheFile));
+        }
+
         $audio = config('tts.provider') === 'edge'
             ? $this->edgeAudio($text)
             : $this->googleAudio($text);
@@ -37,9 +45,19 @@ class TtsController extends Controller
             abort(500, 'Speech synthesis failed.');
         }
 
+        if (! is_dir(dirname($cacheFile))) {
+            @mkdir(dirname($cacheFile), 0775, true);
+        }
+        @file_put_contents($cacheFile, $audio);
+
+        return $this->audioResponse($audio);
+    }
+
+    private function audioResponse(string $audio): Response
+    {
         return response($audio, 200, [
             'Content-Type' => 'audio/mpeg',
-            'Cache-Control' => 'no-store',
+            'Cache-Control' => 'public, max-age=86400',
         ]);
     }
 

@@ -703,45 +703,75 @@ document.addEventListener('DOMContentLoaded', function () {
         renderChart(container.querySelector('canvas'), chart);
     }
 
-    // --- Text-to-speech (edge-tts) ---
+    // --- Text-to-speech with progressive (sentence-by-sentence) playback ---
     const SPEAKER_SVG = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M17.657 6.343a8 8 0 010 11.314M11 5L6 9H2v6h4l5 4V5z"></path></svg>';
     const STOP_AUDIO_SVG = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>';
+    const SPINNER_SVG = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>';
     let currentAudio = null;
     let currentSpeakBtn = null;
+    let speakToken = 0;
 
-    function detectTextLang(text) {
-        return /[຀-໿]/.test(text) ? 'lo' : 'en';
-    }
     function setSpeakState(btn, state) {
         if (!btn) return;
-        btn.disabled = state === 'loading';
-        btn.innerHTML = state === true ? STOP_AUDIO_SVG : SPEAKER_SVG;
-        btn.style.opacity = state === 'loading' ? '0.5' : '';
+        btn.innerHTML = state === 'loading' ? SPINNER_SVG : (state === true ? STOP_AUDIO_SVG : SPEAKER_SVG);
     }
-    function stopCurrentAudio() {
+    function stopSpeaking() {
+        speakToken++;
         if (currentAudio) { currentAudio.pause(); currentAudio = null; }
         if (currentSpeakBtn) { setSpeakState(currentSpeakBtn, false); currentSpeakBtn = null; }
+    }
+    function splitSpeechChunks(text, maxLen = 240) {
+        const parts = text.match(/[^.!?။\n]+[.!?။\n]*/gu) || [text];
+        const chunks = [];
+        let cur = '';
+        for (const p of parts) {
+            if (cur && (cur + p).length > maxLen) { chunks.push(cur.trim()); cur = ''; }
+            cur += p;
+        }
+        if (cur.trim()) chunks.push(cur.trim());
+        return chunks.length ? chunks : [text];
+    }
+    function fetchSpeech(text) {
+        return fetch('{{ route("tts") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+            body: JSON.stringify({ text: text.slice(0, 3000) }),
+        }).then((r) => { if (!r.ok) throw new Error('tts'); return r.blob(); })
+          .then((blob) => URL.createObjectURL(blob));
     }
     function speak(text, btn) {
         text = (text || '').trim();
         if (!text) return;
-        if (btn && btn === currentSpeakBtn) { stopCurrentAudio(); return; }
-        stopCurrentAudio();
+        if (btn && btn === currentSpeakBtn) { stopSpeaking(); return; }
+        stopSpeaking();
+        const token = ++speakToken;
+        currentSpeakBtn = btn;
         setSpeakState(btn, 'loading');
-        fetch('{{ route("tts") }}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
-            body: JSON.stringify({ text: text.slice(0, 3000), language: detectTextLang(text) }),
-        }).then((r) => { if (!r.ok) throw new Error('tts'); return r.blob(); })
-          .then((blob) => {
-              const url = URL.createObjectURL(blob);
-              const audio = new Audio(url);
-              currentAudio = audio;
-              currentSpeakBtn = btn;
-              setSpeakState(btn, true);
-              audio.onended = () => { URL.revokeObjectURL(url); if (btn === currentSpeakBtn) stopCurrentAudio(); };
-              audio.play();
-          }).catch(() => { setSpeakState(btn, false); if (btn === currentSpeakBtn) currentSpeakBtn = null; });
+
+        const chunks = splitSpeechChunks(text);
+        let idx = 0;
+        // Start the first sentence right away; prefetch the next while playing.
+        let nextUrl = fetchSpeech(chunks[0]).catch(() => null);
+
+        const finish = () => {
+            if (token === speakToken) { setSpeakState(btn, false); currentSpeakBtn = null; currentAudio = null; }
+        };
+        const playNext = async () => {
+            if (token !== speakToken) return;
+            if (idx >= chunks.length) { finish(); return; }
+            const url = await nextUrl;
+            if (token !== speakToken) return;
+            if (!url) { finish(); return; }
+            idx++;
+            nextUrl = idx < chunks.length ? fetchSpeech(chunks[idx]).catch(() => null) : Promise.resolve(null);
+            const audio = new Audio(url);
+            currentAudio = audio;
+            setSpeakState(btn, true);
+            audio.onended = () => { URL.revokeObjectURL(url); playNext(); };
+            audio.onerror = () => { URL.revokeObjectURL(url); playNext(); };
+            audio.play().catch(() => {});
+        };
+        playNext();
     }
     function addSpeakButton(proseEl) {
         if (!proseEl || proseEl.dataset.speakAdded) return;
