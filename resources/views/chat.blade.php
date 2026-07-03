@@ -93,6 +93,11 @@
                 <img src="{{ asset('images/logo.webp') }}" alt="Logo" class="h-7 w-auto dark:filter-[invert(1)_hue-rotate(180deg)]">
             </div>
             <div class="flex items-center gap-1">
+                <div class="js-lang-switch flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5 text-[11px] font-semibold mr-1" title="Answer language">
+                    <button type="button" data-lang="auto" class="js-lang-opt px-2 py-0.5 rounded-md transition-colors">Auto</button>
+                    <button type="button" data-lang="en" class="js-lang-opt px-2 py-0.5 rounded-md transition-colors">EN</button>
+                    <button type="button" data-lang="lo" class="js-lang-opt px-2 py-0.5 rounded-md transition-colors">ລາວ</button>
+                </div>
                 <button data-theme-toggle class="p-2 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" title="Switch Theme">
                     <svg data-theme-icon-dark class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                     <svg data-theme-icon-light class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
@@ -112,9 +117,14 @@
                     <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </button>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-3">
+                <div class="js-lang-switch flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5 text-xs font-semibold" title="Answer language">
+                    <button type="button" data-lang="auto" class="js-lang-opt px-2.5 py-1 rounded-md transition-colors">Auto</button>
+                    <button type="button" data-lang="en" class="js-lang-opt px-2.5 py-1 rounded-md transition-colors">EN</button>
+                    <button type="button" data-lang="lo" class="js-lang-opt px-2.5 py-1 rounded-md transition-colors">ລາວ</button>
+                </div>
                 @if(isset($currentConversation))
-                <button 
+                <button
                     onclick="deleteCurrentConversation()"
                     title="Delete Conversation"
                     class="p-2 text-zinc-400 hover:text-red-500 transition-colors"
@@ -380,6 +390,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let isStreaming = false;
     let abortController = null;
+
+    // Answer-language switch (auto / en / lo), persisted in the browser.
+    const LANG_KEY = 'pkl_response_language';
+    function getResponseLanguage() {
+        return localStorage.getItem(LANG_KEY) || 'auto';
+    }
+    function applyLanguageSwitch() {
+        const cur = getResponseLanguage();
+        document.querySelectorAll('.js-lang-opt').forEach((btn) => {
+            const active = btn.dataset.lang === cur;
+            btn.classList.toggle('bg-white', active);
+            btn.classList.toggle('dark:bg-zinc-700', active);
+            btn.classList.toggle('text-zinc-900', active);
+            btn.classList.toggle('dark:text-white', active);
+            btn.classList.toggle('shadow-sm', active);
+            btn.classList.toggle('text-zinc-500', !active);
+        });
+    }
+    document.querySelectorAll('.js-lang-opt').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            localStorage.setItem(LANG_KEY, btn.dataset.lang);
+            applyLanguageSwitch();
+        });
+    });
+    applyLanguageSwitch();
     let selectedImageFile = null;
 
     // Drag and Drop handlers
@@ -673,6 +708,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const formData = new FormData();
             formData.append('message', message);
             formData.append('conversation_id', currentConversationId || '');
+            const respLang = getResponseLanguage();
+            if (respLang === 'en' || respLang === 'lo') {
+                formData.append('response_language', respLang);
+            }
             if (imageFile) {
                 formData.append('image', imageFile);
             }
