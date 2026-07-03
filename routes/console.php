@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Schedule;
 use function Laravel\Ai\agent;
 
 Schedule::command('exports:cleanup')->hourly();
+Schedule::command('tts:clear-cache')->weekly();
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
