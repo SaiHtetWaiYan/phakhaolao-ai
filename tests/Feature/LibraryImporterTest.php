@@ -19,6 +19,7 @@ function fakeResourcePost(int $id, string $title): array
         'acf' => [
             'pkl_resource_author' => 'Rachele Arcese',
             'pkl_resource_year' => '2025.',
+            'pkl_resource_file' => 555,
         ],
         '_embedded' => [
             'wp:term' => [
@@ -34,8 +35,19 @@ function fakeResourcePost(int $id, string $title): array
     ];
 }
 
+function fakeMediaResponse(): GuzzleHttp\Promise\PromiseInterface
+{
+    return Http::response(
+        [['id' => 555, 'source_url' => 'https://phakhaolao.la/wp-content/uploads/2026/05/NTFP-Book.pdf']],
+        200
+    );
+}
+
 it('imports library resources from the WordPress REST API', function () {
     Http::fake(function ($request) {
+        if (str_contains($request->url(), '/media')) {
+            return fakeMediaResponse();
+        }
         $id = str_contains($request->url(), 'lang=lo') ? 200 : 100;
 
         return Http::response([fakeResourcePost($id, 'Herbarium of NTFPs')], 200, ['X-WP-TotalPages' => '1']);
@@ -56,33 +68,31 @@ it('imports library resources from the WordPress REST API', function () {
     expect($resource->featured)->toBeTrue();
     expect($resource->topics)->toBe(['Conservation', 'NTFPs']);
     expect($resource->description)->toBe('An important NTFP reference.');
+    // PDF resolved from the acf attachment id (555) via the media endpoint.
+    expect($resource->file_url)->toBe('https://phakhaolao.la/wp-content/uploads/2026/05/NTFP-Book.pdf');
 });
 
-it('enriches resources with author and PDF link from the detail page', function () {
-    LibraryResource::create([
-        'source_id' => 100,
-        'language' => 'en',
-        'title' => 'Herbarium of NTFPs',
-        'source_url' => 'https://phakhaolao.la/en/resource/herbarium/',
-    ]);
+it('leaves file_url null when the resource has no attached file', function () {
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), '/media')) {
+            return fakeMediaResponse();
+        }
+        $post = fakeResourcePost(100, 'No File Resource');
+        unset($post['acf']['pkl_resource_file']);
 
-    $html = '<div class="elementor-heading-title elementor-size-default">Herbarium of NTFPs</div>'
-        .'<div class="elementor-heading-title elementor-size-default">Rachele Arcese and Sisovath Phandanouvong</div>'
-        .'<a class="elementor-button" href="https://phakhaolao.la/wp-content/uploads/2026/05/NTFP-Book.pdf" target="_blank">Download</a>';
+        return Http::response([$post], 200, ['X-WP-TotalPages' => '1']);
+    });
 
-    Http::fake(['phakhaolao.la/en/resource/*' => Http::response($html, 200)]);
+    app(LibraryImporter::class)->import();
 
-    $result = app(LibraryImporter::class)->enrich(delayMs: 0);
-
-    expect($result['updated'])->toBe(1);
-
-    $resource = LibraryResource::where('source_id', 100)->first();
-    expect($resource->author)->toBe('Rachele Arcese and Sisovath Phandanouvong');
-    expect($resource->file_url)->toBe('https://phakhaolao.la/wp-content/uploads/2026/05/NTFP-Book.pdf');
+    expect(LibraryResource::where('source_id', 100)->first()->file_url)->toBeNull();
 });
 
 it('is idempotent and does not duplicate on re-import', function () {
     Http::fake(function ($request) {
+        if (str_contains($request->url(), '/media')) {
+            return fakeMediaResponse();
+        }
         $id = str_contains($request->url(), 'lang=lo') ? 200 : 100;
 
         return Http::response([fakeResourcePost($id, 'Resource')], 200, ['X-WP-TotalPages' => '1']);

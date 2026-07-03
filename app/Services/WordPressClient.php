@@ -48,4 +48,44 @@ class WordPressClient
 
         return $posts;
     }
+
+    /**
+     * Resolve attachment (media) IDs to their file URLs.
+     *
+     * @param  array<int, mixed>  $ids
+     * @return array<int, string> media id => source_url
+     */
+    public function fetchMediaUrls(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $urls = [];
+
+        foreach (array_chunk($ids, 100) as $chunk) {
+            $response = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
+                ->retry(2, 1500)
+                ->acceptJson()
+                ->get("{$this->baseUrl}/media", [
+                    'include' => implode(',', $chunk),
+                    'per_page' => 100,
+                    '_fields' => 'id,source_url',
+                ]);
+
+            if (! $response->successful()) {
+                continue;
+            }
+
+            foreach ($response->json() ?? [] as $media) {
+                if (isset($media['id'], $media['source_url'])) {
+                    $urls[(int) $media['id']] = (string) $media['source_url'];
+                }
+            }
+        }
+
+        return $urls;
+    }
 }

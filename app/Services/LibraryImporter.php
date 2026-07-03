@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\LibraryResource;
 use App\Services\Concerns\MapsWordPressPosts;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Http;
 
 class LibraryImporter
 {
@@ -33,14 +32,22 @@ class LibraryImporter
         $seenSourceIds = [];
 
         foreach (self::LANGUAGES as $lang) {
-            foreach ($this->client->fetchAll('resource', $lang) as $post) {
+            $posts = $this->client->fetchAll('resource', $lang);
+
+            // Resolve every resource's PDF (an attachment ID in acf) to its URL
+            // in one batched request per language.
+            $mediaUrls = $dryRun ? [] : $this->client->fetchMediaUrls(
+                $posts->map(fn (array $post): mixed => Arr::get($post, 'acf.pkl_resource_file'))->all()
+            );
+
+            foreach ($posts as $post) {
                 $sourceId = (int) ($post['id'] ?? 0);
                 if ($sourceId === 0) {
                     continue;
                 }
 
                 $seenSourceIds[] = $sourceId;
-                $data = $this->mapPost($post, $lang);
+                $data = $this->mapPost($post, $lang, $mediaUrls);
                 $hash = md5(json_encode(Arr::except($data, ['source_modified_at']), JSON_UNESCAPED_UNICODE) ?: '');
 
                 if ($dryRun) {
@@ -79,107 +86,22 @@ class LibraryImporter
     }
 
     /**
-     * Enrich resources by scraping their detail pages for the author and PDF
-     * download link (these are not exposed by the REST API).
-     *
-     * @return array{updated: int, failed: int, total: int}
-     */
-    public function enrich(?callable $onProgress = null, int $delayMs = 300): array
-    {
-        $resources = LibraryResource::query()->whereNotNull('source_url')->get();
-        $updated = 0;
-        $failed = 0;
-
-        foreach ($resources as $resource) {
-            try {
-                $html = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
-                    ->timeout(20)
-                    ->get($resource->source_url)
-                    ->body();
-
-                $changes = array_filter([
-                    'file_url' => $this->parsePdfLink($html),
-                    'author' => $this->parseAuthor($html, $resource->title),
-                    'publication_year' => $this->parsePublicationYear($html),
-                ], fn ($v) => $v !== null);
-
-                if ($changes !== []) {
-                    $resource->update($changes);
-                    $updated++;
-                }
-            } catch (\Throwable) {
-                $failed++;
-            }
-
-            if ($onProgress) {
-                $onProgress();
-            }
-
-            if ($delayMs > 0) {
-                usleep($delayMs * 1000);
-            }
-        }
-
-        return ['updated' => $updated, 'failed' => $failed, 'total' => $resources->count()];
-    }
-
-    private function parsePdfLink(string $html): ?string
-    {
-        if (preg_match('#href="(https://phakhaolao\.la/wp-content/uploads/[^"]+\.(?:pdf|docx?|xlsx?|pptx?|zip))"#i', $html, $m) === 1) {
-            return $m[1];
-        }
-
-        return null;
-    }
-
-    private function parsePublicationYear(string $html): ?int
-    {
-        if (preg_match('/published\s+in\s+((?:19|20)\d{2})/i', $html, $m) === 1) {
-            return (int) $m[1];
-        }
-
-        return null;
-    }
-
-    private function parseAuthor(string $html, string $title): ?string
-    {
-        if (preg_match_all('#class="elementor-heading-title[^"]*"[^>]*>(.*?)</div>#s', $html, $m) !== 1 && empty($m[1])) {
-            return null;
-        }
-
-        $headings = [];
-        foreach ($m[1] as $raw) {
-            $text = $this->htmlText($raw);
-            if ($text !== null) {
-                $headings[] = $text;
-            }
-        }
-
-        $titleLower = mb_strtolower($title);
-
-        foreach ($headings as $i => $heading) {
-            if (str_contains(mb_strtolower($heading), $titleLower) && isset($headings[$i + 1])) {
-                return $headings[$i + 1];
-            }
-        }
-
-        return null;
-    }
-
-    /**
      * @param  array<string, mixed>  $post
+     * @param  array<int, string>  $mediaUrls  Resolved attachment id => file URL
      * @return array<string, mixed>
      */
-    private function mapPost(array $post, string $lang): array
+    private function mapPost(array $post, string $lang, array $mediaUrls = []): array
     {
         $terms = $this->extractTerms($post);
-        $author = $this->clean(Arr::get($post, 'acf.pkl_resource_author'));
+        $fileId = (int) Arr::get($post, 'acf.pkl_resource_file');
 
-        $data = [
+        return [
             'language' => $lang,
             'slug' => $this->clean($post['slug'] ?? null),
             'title' => $this->htmlText(Arr::get($post, 'title.rendered')) ?? 'Untitled',
             'publication_year' => $this->publicationYear(Arr::get($post, 'acf.pkl_resource_year')),
+            'author' => $this->clean(Arr::get($post, 'acf.pkl_resource_author')),
+            'file_url' => $fileId > 0 ? ($mediaUrls[$fileId] ?? null) : null,
             'description' => $this->htmlText(Arr::get($post, 'content.rendered')),
             'resource_type' => Arr::first($terms['resource-type'] ?? []),
             'resource_language' => Arr::first($terms['language'] ?? []),
@@ -191,14 +113,6 @@ class LibraryImporter
             'source_url' => $this->clean($post['link'] ?? null),
             'source_modified_at' => $this->clean($post['modified'] ?? null),
         ];
-
-        // Preserve an author found by detail-page enrichment when the REST API
-        // does not expose the ACF author field.
-        if ($author !== null) {
-            $data['author'] = $author;
-        }
-
-        return $data;
     }
 
     private function publicationYear(mixed $value): ?int
