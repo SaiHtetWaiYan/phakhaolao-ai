@@ -703,6 +703,59 @@ document.addEventListener('DOMContentLoaded', function () {
         renderChart(container.querySelector('canvas'), chart);
     }
 
+    // --- Text-to-speech (edge-tts) ---
+    const SPEAKER_SVG = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M17.657 6.343a8 8 0 010 11.314M11 5L6 9H2v6h4l5 4V5z"></path></svg>';
+    const STOP_AUDIO_SVG = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>';
+    let currentAudio = null;
+    let currentSpeakBtn = null;
+
+    function detectTextLang(text) {
+        return /[຀-໿]/.test(text) ? 'lo' : 'en';
+    }
+    function setSpeakState(btn, state) {
+        if (!btn) return;
+        btn.disabled = state === 'loading';
+        btn.innerHTML = state === true ? STOP_AUDIO_SVG : SPEAKER_SVG;
+        btn.style.opacity = state === 'loading' ? '0.5' : '';
+    }
+    function stopCurrentAudio() {
+        if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+        if (currentSpeakBtn) { setSpeakState(currentSpeakBtn, false); currentSpeakBtn = null; }
+    }
+    function speak(text, btn) {
+        text = (text || '').trim();
+        if (!text) return;
+        if (btn && btn === currentSpeakBtn) { stopCurrentAudio(); return; }
+        stopCurrentAudio();
+        setSpeakState(btn, 'loading');
+        fetch('{{ route("tts") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+            body: JSON.stringify({ text: text.slice(0, 3000), language: detectTextLang(text) }),
+        }).then((r) => { if (!r.ok) throw new Error('tts'); return r.blob(); })
+          .then((blob) => {
+              const url = URL.createObjectURL(blob);
+              const audio = new Audio(url);
+              currentAudio = audio;
+              currentSpeakBtn = btn;
+              setSpeakState(btn, true);
+              audio.onended = () => { URL.revokeObjectURL(url); if (btn === currentSpeakBtn) stopCurrentAudio(); };
+              audio.play();
+          }).catch(() => { setSpeakState(btn, false); if (btn === currentSpeakBtn) currentSpeakBtn = null; });
+    }
+    function addSpeakButton(proseEl) {
+        if (!proseEl || proseEl.dataset.speakAdded) return;
+        if (!(proseEl.textContent || '').trim()) return;
+        proseEl.dataset.speakAdded = '1';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.title = 'Listen';
+        btn.className = 'js-speak-btn mt-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors';
+        btn.innerHTML = SPEAKER_SVG;
+        btn.addEventListener('click', () => speak(proseEl.textContent || '', btn));
+        proseEl.parentElement.appendChild(btn);
+    }
+
     function renderExistingAssistantMessages() {
         document.querySelectorAll('.chat-message').forEach((messageEl) => {
             const rawEl = messageEl.querySelector('.js-assistant-raw');
@@ -712,6 +765,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             renderAssistantContent(renderedEl, rawEl.value || '');
+            addSpeakButton(renderedEl);
         });
     }
 
@@ -812,6 +866,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (fullText) {
+                addSpeakButton(bubble);
                 const saveResponse = await fetch('{{ route("chat.save-response") }}', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
