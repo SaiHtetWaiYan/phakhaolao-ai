@@ -1108,13 +1108,8 @@ document.addEventListener('DOMContentLoaded', function () {
         setMicState('transcribing');
         const fd = new FormData();
         fd.append('audio', blob, 'recording.webm');
-        // Google STT can't reliably auto-detect Lao vs English, so pick a definite
-        // language: the switch if set, else guess from the browser language.
-        const chosen = getResponseLanguage();
-        const sttLang = (chosen === 'en' || chosen === 'lo')
-            ? chosen
-            : ((navigator.language || 'en').toLowerCase().startsWith('lo') ? 'lo' : 'en');
-        fd.append('language', sttLang);
+        // Send the switch value; for "auto" the backend detects Lao vs English.
+        fd.append('language', getResponseLanguage());
         fetch('{{ route("transcribe") }}', {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': csrfToken },
