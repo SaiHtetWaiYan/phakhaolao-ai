@@ -221,8 +221,11 @@
                         class="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-zinc-900 dark:bg-indigo-600 text-white rounded-xl hover:bg-zinc-700 dark:hover:bg-indigo-500 disabled:opacity-30 disabled:hover:bg-zinc-900 dark:disabled:hover:bg-indigo-600 transition-all shadow-sm group"
                         disabled
                     >
-                        <svg class="w-5 h-5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="js-send-icon w-5 h-5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                        </svg>
+                        <svg class="js-stop-icon hidden w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <rect x="6" y="6" width="12" height="12" rx="2.5"></rect>
                         </svg>
                     </button>
                 </form>
@@ -376,6 +379,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const dropOverlay = document.getElementById('drop-overlay');
 
     let isStreaming = false;
+    let abortController = null;
     let selectedImageFile = null;
 
     // Drag and Drop handlers
@@ -433,7 +437,23 @@ document.addEventListener('DOMContentLoaded', function () {
     handleBrokenImages(messagesContainer);
 
     function updateSendButton() {
-        sendBtn.disabled = (input.value.trim().length === 0 && !selectedImageFile) || isStreaming;
+        const sendIcon = sendBtn.querySelector('.js-send-icon');
+        const stopIcon = sendBtn.querySelector('.js-stop-icon');
+
+        if (isStreaming) {
+            // Turn the send button into a Stop button while generating.
+            sendBtn.disabled = false;
+            sendBtn.title = 'Stop generating';
+            sendBtn.setAttribute('aria-label', 'Stop generating');
+            sendIcon?.classList.add('hidden');
+            stopIcon?.classList.remove('hidden');
+        } else {
+            sendBtn.title = 'Send';
+            sendBtn.setAttribute('aria-label', 'Send');
+            sendIcon?.classList.remove('hidden');
+            stopIcon?.classList.add('hidden');
+            sendBtn.disabled = (input.value.trim().length === 0 && !selectedImageFile);
+        }
     }
 
     // Enable/Disable send button based on input or image
@@ -623,10 +643,15 @@ document.addEventListener('DOMContentLoaded', function () {
         return div.innerHTML;
     }
 
+    function stopGeneration() {
+        if (abortController) abortController.abort();
+    }
+
     async function sendMessage(message) {
         if (isStreaming) return;
         isStreaming = true;
-        sendBtn.disabled = true;
+        abortController = new AbortController();
+        updateSendButton();
         input.value = '';
 
         // Capture image before clearing
@@ -656,6 +681,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 method: 'POST',
                 headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'text/event-stream' },
                 body: formData,
+                signal: abortController.signal,
             });
 
             if (!response.ok) {
@@ -725,11 +751,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         } catch (error) {
-            console.error('Chat error:', error);
-            showError(error.message || 'Something went wrong.');
-            bubble.parentElement.parentElement.remove();
+            // User pressed Stop — remove the pending bubble, no error toast.
+            if (error.name === 'AbortError') {
+                bubble.parentElement.parentElement.remove();
+            } else {
+                console.error('Chat error:', error);
+                showError(error.message || 'Something went wrong.');
+                bubble.parentElement.parentElement.remove();
+            }
         } finally {
             isStreaming = false;
+            abortController = null;
+            updateSendButton();
             input.focus();
         }
     }
@@ -804,6 +837,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     form.addEventListener('submit', (e) => {
         e.preventDefault();
+        // While generating, the button acts as a Stop button.
+        if (isStreaming) {
+            stopGeneration();
+            return;
+        }
         const msg = input.value.trim();
         if (msg || selectedImageFile) sendMessage(msg);
     });
