@@ -224,8 +224,18 @@
                         placeholder="Message Phakhaolao AI..."
                         data-i18n-ph="placeholder"
                         autocomplete="off"
-                        class="w-full pl-12 pr-14 py-4 bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-[15px] placeholder:text-zinc-400"
+                        class="w-full pl-12 pr-24 py-4 bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-[15px] placeholder:text-zinc-400"
                     >
+                    <button
+                        type="button"
+                        id="mic-btn"
+                        title="Voice input"
+                        class="absolute right-12 top-1/2 -translate-y-1/2 p-2.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-14 0m7 7v3m-4 0h8M12 1a3 3 0 00-3 3v6a3 3 0 006 0V4a3 3 0 00-3-3z"></path>
+                        </svg>
+                    </button>
                     <button
                         type="submit"
                         id="send-btn"
@@ -1059,6 +1069,71 @@ document.addEventListener('DOMContentLoaded', function () {
         const msg = input.value.trim();
         if (msg || selectedImageFile) sendMessage(msg);
     });
+
+    // --- Voice input (speech-to-text via Google STT) ---
+    const micBtn = document.getElementById('mic-btn');
+    const MIC_SVG = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-14 0m7 7v3m-4 0h8M12 1a3 3 0 00-3 3v6a3 3 0 006 0V4a3 3 0 00-3-3z"></path></svg>';
+    const MIC_STOP_SVG = '<svg class="w-5 h-5 text-red-500 animate-pulse" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>';
+    const MIC_SPINNER_SVG = '<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>';
+    let mediaRecorder = null;
+    let audioChunks = [];
+
+    function setMicState(state) {
+        if (!micBtn) return;
+        micBtn.disabled = state === 'transcribing';
+        micBtn.innerHTML = state === 'recording' ? MIC_STOP_SVG : (state === 'transcribing' ? MIC_SPINNER_SVG : MIC_SVG);
+        micBtn.title = state === 'recording' ? 'Stop recording' : 'Voice input';
+    }
+    async function startRecording() {
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+            showError('Microphone access is required for voice input.');
+            return;
+        }
+        audioChunks = [];
+        const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+        mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+        mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+            stream.getTracks().forEach((t) => t.stop());
+            transcribeAudio(new Blob(audioChunks, { type: 'audio/webm' }));
+        };
+        mediaRecorder.start();
+        setMicState('recording');
+    }
+    function transcribeAudio(blob) {
+        if (!blob || !blob.size) { setMicState('idle'); return; }
+        setMicState('transcribing');
+        const fd = new FormData();
+        fd.append('audio', blob, 'recording.webm');
+        fd.append('language', getResponseLanguage());
+        fetch('{{ route("transcribe") }}', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': csrfToken },
+            body: fd,
+        }).then((r) => r.json()).then((data) => {
+            setMicState('idle');
+            const text = (data && data.text) ? String(data.text).trim() : '';
+            if (text) {
+                input.value = input.value.trim() ? (input.value.trim() + ' ' + text) : text;
+                input.focus();
+                updateSendButton();
+            } else {
+                showError('Could not transcribe the audio. Please try again.');
+            }
+        }).catch(() => { setMicState('idle'); showError('Voice transcription failed.'); });
+    }
+    if (micBtn) {
+        micBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            } else {
+                startRecording();
+            }
+        });
+    }
 
     deleteModalCancel.addEventListener('click', closeDeleteModal);
     deleteModalConfirm.addEventListener('click', async () => {
