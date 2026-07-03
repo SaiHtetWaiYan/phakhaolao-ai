@@ -399,13 +399,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function applyLanguageSwitch() {
         const cur = getResponseLanguage();
         document.querySelectorAll('.js-lang-opt').forEach((btn) => {
-            const active = btn.dataset.lang === cur;
-            btn.classList.toggle('bg-white', active);
-            btn.classList.toggle('dark:bg-zinc-700', active);
-            btn.classList.toggle('text-zinc-900', active);
-            btn.classList.toggle('dark:text-white', active);
-            btn.classList.toggle('shadow-sm', active);
-            btn.classList.toggle('text-zinc-500', !active);
+            btn.classList.toggle('is-active', btn.dataset.lang === cur);
         });
     }
     document.querySelectorAll('.js-lang-opt').forEach((btn) => {
@@ -910,5 +904,10 @@ document.addEventListener('DOMContentLoaded', function () {
 /* Break long URLs/words so a message never forces horizontal scroll. */
 .prose, .prose a, .whitespace-pre-wrap { overflow-wrap: anywhere; word-break: break-word; }
 .prose pre { overflow-x: auto; max-width: 100%; }
+/* Answer-language switch active state (build-independent). */
+.js-lang-opt { color: #71717a; }
+.js-lang-opt.is-active { background: #ffffff; color: #18181b; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.dark .js-lang-opt { color: #a1a1aa; }
+.dark .js-lang-opt.is-active { background: #3f3f46; color: #ffffff; }
 </style>
 @endsection
