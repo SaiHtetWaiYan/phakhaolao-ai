@@ -28,13 +28,13 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
-                New Chat
+                <span data-i18n="new_chat">New Chat</span>
             </a>
         </div>
 
         {{-- History List --}}
         <div class="flex-1 overflow-y-auto px-4 py-2 space-y-1 custom-scrollbar">
-            <div class="px-2 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">Recent</div>
+            <div class="px-2 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider" data-i18n="recent">Recent</div>
             @foreach($conversations as $conv)
                 <div class="group relative flex items-center">
                     <a href="{{ route('chat', $conv->id) }}" 
@@ -57,7 +57,7 @@
                     <svg data-theme-icon-dark class="hidden w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                     <svg data-theme-icon-light class="hidden w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
                 </div>
-                <span class="text-sm font-medium">Switch Theme</span>
+                <span class="text-sm font-medium" data-i18n="switch_theme">Switch Theme</span>
             </button>
             <div class="flex items-center gap-3 px-2 py-2">
                 <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-medium text-xs">
@@ -145,8 +145,8 @@
                     <div class="mb-8">
                         <img src="{{ asset('images/logo.webp') }}" alt="Phakhaolao AI" class="h-16 md:h-20 w-auto dark:filter-[invert(1)_hue-rotate(180deg)]">
                     </div>
-                    <h2 class="text-2xl font-bold text-zinc-900 dark:text-white mb-2">How can I help you today?</h2>
-                    <p class="text-zinc-500 dark:text-zinc-400 max-w-md">Ask about Laos plants, animals, uses, habitats, and local species data from the PhaKhaoLao knowledge base.</p>
+                    <h2 class="text-2xl font-bold text-zinc-900 dark:text-white mb-2" data-i18n="welcome_title">How can I help you today?</h2>
+                    <p class="text-zinc-500 dark:text-zinc-400 max-w-md" data-i18n="welcome_subtitle">Ask about Laos plants, animals, uses, habitats, and local species data from the PhaKhaoLao knowledge base.</p>
                 </div>
 
                 {{-- Render Existing Messages --}}
@@ -222,6 +222,7 @@
                         id="message-input"
                         name="message"
                         placeholder="Message Phakhaolao AI..."
+                        data-i18n-ph="placeholder"
                         autocomplete="off"
                         class="w-full pl-12 pr-14 py-4 bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-[15px] placeholder:text-zinc-400"
                     >
@@ -240,7 +241,7 @@
                     </button>
                 </form>
                 <div class="text-center mt-2">
-                    <p class="text-xs text-zinc-400 dark:text-zinc-500">Phakhaolao AI can make mistakes. Consider checking important information.</p>
+                    <p class="text-xs text-zinc-400 dark:text-zinc-500" data-i18n="disclaimer">Phakhaolao AI can make mistakes. Consider checking important information.</p>
                 </div>
             </div>
         </footer>
@@ -249,11 +250,11 @@
 
 <div id="delete-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 px-4">
     <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-zinc-900">
-        <h3 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Delete conversation?</h3>
-        <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">This will permanently delete this conversation and all messages.</p>
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100" data-i18n="delete_title">Delete conversation?</h3>
+        <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300" data-i18n="delete_body">This will permanently delete this conversation and all messages.</p>
         <div class="mt-5 flex items-center justify-end gap-2">
-            <button id="delete-modal-cancel" type="button" class="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Cancel</button>
-            <button id="delete-modal-confirm" type="button" class="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-500">Delete</button>
+            <button id="delete-modal-cancel" type="button" class="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800" data-i18n="cancel">Cancel</button>
+            <button id="delete-modal-confirm" type="button" class="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-500" data-i18n="delete">Delete</button>
         </div>
     </div>
 </div>
@@ -396,11 +397,60 @@ document.addEventListener('DOMContentLoaded', function () {
     function getResponseLanguage() {
         return localStorage.getItem(LANG_KEY) || 'auto';
     }
+
+    // Interface translations. "auto" and "en" use English; "lo" uses Lao.
+    const I18N = {
+        en: {
+            new_chat: 'New Chat',
+            recent: 'Recent',
+            switch_theme: 'Switch Theme',
+            welcome_title: 'How can I help you today?',
+            welcome_subtitle: 'Ask about Laos plants, animals, uses, habitats, and local species data from the PhaKhaoLao knowledge base.',
+            placeholder: 'Message Phakhaolao AI...',
+            disclaimer: 'Phakhaolao AI can make mistakes. Consider checking important information.',
+            delete_title: 'Delete conversation?',
+            delete_body: 'This will permanently delete this conversation and all messages.',
+            cancel: 'Cancel',
+            delete: 'Delete',
+        },
+        lo: {
+            new_chat: 'ສ້າງການສົນທະນາໃໝ່',
+            recent: 'ຫຼ້າສຸດ',
+            switch_theme: 'ສະຫຼັບຮູບແບບ',
+            welcome_title: 'ມື້ນີ້ຂ້ອຍຊ່ວຍຫຍັງທ່ານໄດ້ແດ່?',
+            welcome_subtitle: 'ຖາມກ່ຽວກັບພືດ, ສັດ, ການນຳໃຊ້, ຖິ່ນທີ່ຢູ່ ແລະ ຂໍ້ມູນຊະນິດພັນທ້ອງຖິ່ນຂອງລາວ ຈາກຖານຄວາມຮູ້ PhaKhaoLao.',
+            placeholder: 'ພິມຂໍ້ຄວາມຫາ Phakhaolao AI...',
+            disclaimer: 'Phakhaolao AI ອາດຈະຜິດພາດໄດ້. ກະລຸນາກວດສອບຂໍ້ມູນທີ່ສຳຄັນ.',
+            delete_title: 'ລຶບການສົນທະນາ?',
+            delete_body: 'ນີ້ຈະລຶບການສົນທະນານີ້ ແລະ ຂໍ້ຄວາມທັງໝົດຢ່າງຖາວອນ.',
+            cancel: 'ຍົກເລີກ',
+            delete: 'ລຶບ',
+        },
+    };
+    let defaultPlaceholder = I18N.en.placeholder;
+
+    function interfaceLang() {
+        return getResponseLanguage() === 'lo' ? 'lo' : 'en';
+    }
+    function applyInterfaceLanguage() {
+        const t = I18N[interfaceLang()];
+        document.querySelectorAll('[data-i18n]').forEach((el) => {
+            const k = el.dataset.i18n;
+            if (t[k]) el.textContent = t[k];
+        });
+        document.querySelectorAll('[data-i18n-ph]').forEach((el) => {
+            const k = el.dataset.i18nPh;
+            if (t[k]) el.placeholder = t[k];
+        });
+        defaultPlaceholder = t.placeholder;
+    }
+
     function applyLanguageSwitch() {
         const cur = getResponseLanguage();
         document.querySelectorAll('.js-lang-opt').forEach((btn) => {
             btn.classList.toggle('is-active', btn.dataset.lang === cur);
         });
+        applyInterfaceLanguage();
     }
     document.querySelectorAll('.js-lang-opt').forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -492,7 +542,6 @@ document.addEventListener('DOMContentLoaded', function () {
     uploadBtn.addEventListener('click', () => imageInput.click());
 
     // Handle file selection
-    const defaultPlaceholder = 'Message Phakhaolao AI...';
     const imagePlaceholder = 'Add species name for better results (optional)...';
 
     imageInput.addEventListener('change', function () {
