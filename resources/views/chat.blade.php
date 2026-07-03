@@ -773,17 +773,57 @@ document.addEventListener('DOMContentLoaded', function () {
         };
         playNext();
     }
-    function addSpeakButton(proseEl) {
-        if (!proseEl || proseEl.dataset.speakAdded) return;
+    const COPY_SVG = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>';
+    const CHECK_SVG = '<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+
+    function copyMessage(proseEl, btn) {
+        const text = (proseEl.textContent || '').trim();
+        if (!text) return;
+        const done = () => {
+            btn.innerHTML = CHECK_SVG;
+            setTimeout(() => { btn.innerHTML = COPY_SVG; }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+        } else {
+            fallbackCopy(text, done);
+        }
+    }
+    function fallbackCopy(text, done) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+    }
+    function addMessageActions(proseEl) {
+        if (!proseEl || proseEl.dataset.actionsAdded) return;
         if (!(proseEl.textContent || '').trim()) return;
-        proseEl.dataset.speakAdded = '1';
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.title = 'Listen';
-        btn.className = 'js-speak-btn mt-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors';
-        btn.innerHTML = SPEAKER_SVG;
-        btn.addEventListener('click', () => speak(proseEl.textContent || '', btn));
-        proseEl.parentElement.appendChild(btn);
+        proseEl.dataset.actionsAdded = '1';
+
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 mt-1.5';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.title = 'Copy';
+        copyBtn.className = 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors';
+        copyBtn.innerHTML = COPY_SVG;
+        copyBtn.addEventListener('click', () => copyMessage(proseEl, copyBtn));
+
+        const speakBtn = document.createElement('button');
+        speakBtn.type = 'button';
+        speakBtn.title = 'Listen';
+        speakBtn.className = 'js-speak-btn text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors';
+        speakBtn.innerHTML = SPEAKER_SVG;
+        speakBtn.addEventListener('click', () => speak(proseEl.textContent || '', speakBtn));
+
+        row.appendChild(copyBtn);
+        row.appendChild(speakBtn);
+        proseEl.parentElement.appendChild(row);
     }
 
     function renderExistingAssistantMessages() {
@@ -795,7 +835,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             renderAssistantContent(renderedEl, rawEl.value || '');
-            addSpeakButton(renderedEl);
+            addMessageActions(renderedEl);
         });
     }
 
@@ -896,7 +936,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (fullText) {
-                addSpeakButton(bubble);
+                addMessageActions(bubble);
                 const saveResponse = await fetch('{{ route("chat.save-response") }}', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
