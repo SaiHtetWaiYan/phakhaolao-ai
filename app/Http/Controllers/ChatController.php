@@ -13,6 +13,7 @@ use App\Support\RagSettings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -175,6 +176,10 @@ class ChatController extends Controller
 
         if ($message === '' && ! $hasImage) {
             return response()->json(['message' => 'Please enter a valid message.'], 422);
+        }
+
+        if ($limitReply = $this->enforceDailyLimit($owner, $request, $conversationId)) {
+            return $limitReply;
         }
 
         if ($this->hasConversationTables()) {
@@ -570,6 +575,39 @@ class ChatController extends Controller
         }
 
         return ['user_id' => null, 'guest_token' => $this->ensureGuestToken($request)];
+    }
+
+    /**
+     * Enforce a per-user daily message cap. Returns a reply when the limit is
+     * reached, otherwise records the message and returns null.
+     *
+     * @param  array{user_id: mixed, guest_token: mixed}  $owner
+     */
+    private function enforceDailyLimit(array $owner, Request $request, ?string $conversationId): ?StreamedResponse
+    {
+        $limit = (int) config('chat.daily_message_limit', 0);
+
+        if ($limit <= 0) {
+            return null;
+        }
+
+        $today = now((string) config('chat.limit_timezone', 'Asia/Vientiane'));
+        $identifier = $owner['user_id'] ?? $owner['guest_token'] ?? $request->ip();
+        $key = 'chat-usage:'.md5((string) $identifier).':'.$today->toDateString();
+
+        $used = (int) Cache::get($key, 0);
+
+        if ($used >= $limit) {
+            return $this->streamPlainTextResponse(
+                "ທ່ານໄດ້ໃຊ້ຄົບຈຳນວນຂໍ້ຄວາມສູງສຸດຕໍ່ມື້ ({$limit} ຂໍ້ຄວາມ) ແລ້ວ. ກະລຸນາລອງໃໝ່ຫຼັງທ່ຽງຄືນ.\n\n"
+                ."You've reached your daily limit of {$limit} messages. Please try again after midnight.",
+                $conversationId
+            );
+        }
+
+        Cache::put($key, $used + 1, $today->copy()->endOfDay());
+
+        return null;
     }
 
     private function ensureGuestToken(Request $request): string
