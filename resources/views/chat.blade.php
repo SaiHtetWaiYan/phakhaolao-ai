@@ -28,13 +28,13 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
-                New Chat
+                <span data-i18n="new_chat">New Chat</span>
             </a>
         </div>
 
         {{-- History List --}}
         <div class="flex-1 overflow-y-auto px-4 py-2 space-y-1 custom-scrollbar">
-            <div class="px-2 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">Recent</div>
+            <div class="px-2 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider" data-i18n="recent">Recent</div>
             @foreach($conversations as $conv)
                 <div class="group relative flex items-center">
                     <a href="{{ route('chat', $conv->id) }}" 
@@ -57,7 +57,7 @@
                     <svg data-theme-icon-dark class="hidden w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                     <svg data-theme-icon-light class="hidden w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
                 </div>
-                <span class="text-sm font-medium">Switch Theme</span>
+                <span class="text-sm font-medium" data-i18n="switch_theme">Switch Theme</span>
             </button>
             <div class="flex items-center gap-3 px-2 py-2">
                 <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-medium text-xs">
@@ -93,6 +93,11 @@
                 <img src="{{ asset('images/logo.webp') }}" alt="Logo" class="h-7 w-auto dark:filter-[invert(1)_hue-rotate(180deg)]">
             </div>
             <div class="flex items-center gap-1">
+                <div class="js-lang-switch flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5 text-[11px] font-semibold mr-1" title="Answer language">
+                    <button type="button" data-lang="auto" class="js-lang-opt px-2 py-0.5 rounded-md transition-colors">Auto</button>
+                    <button type="button" data-lang="en" class="js-lang-opt px-2 py-0.5 rounded-md transition-colors">EN</button>
+                    <button type="button" data-lang="lo" class="js-lang-opt px-2 py-0.5 rounded-md transition-colors">ລາວ</button>
+                </div>
                 <button data-theme-toggle class="p-2 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" title="Switch Theme">
                     <svg data-theme-icon-dark class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                     <svg data-theme-icon-light class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
@@ -112,9 +117,14 @@
                     <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </button>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-3">
+                <div class="js-lang-switch flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5 text-xs font-semibold" title="Answer language">
+                    <button type="button" data-lang="auto" class="js-lang-opt px-2.5 py-1 rounded-md transition-colors">Auto</button>
+                    <button type="button" data-lang="en" class="js-lang-opt px-2.5 py-1 rounded-md transition-colors">EN</button>
+                    <button type="button" data-lang="lo" class="js-lang-opt px-2.5 py-1 rounded-md transition-colors">ລາວ</button>
+                </div>
                 @if(isset($currentConversation))
-                <button 
+                <button
                     onclick="deleteCurrentConversation()"
                     title="Delete Conversation"
                     class="p-2 text-zinc-400 hover:text-red-500 transition-colors"
@@ -135,8 +145,8 @@
                     <div class="mb-8">
                         <img src="{{ asset('images/logo.webp') }}" alt="Phakhaolao AI" class="h-16 md:h-20 w-auto dark:filter-[invert(1)_hue-rotate(180deg)]">
                     </div>
-                    <h2 class="text-2xl font-bold text-zinc-900 dark:text-white mb-2">How can I help you today?</h2>
-                    <p class="text-zinc-500 dark:text-zinc-400 max-w-md">Ask about Laos plants, animals, uses, habitats, and local species data from the PhaKhaoLao knowledge base.</p>
+                    <h2 class="text-2xl font-bold text-zinc-900 dark:text-white mb-2" data-i18n="welcome_title">How can I help you today?</h2>
+                    <p class="text-zinc-500 dark:text-zinc-400 max-w-md" data-i18n="welcome_subtitle">Ask about Laos plants, animals, uses, habitats, and local species data from the PhaKhaoLao knowledge base.</p>
                 </div>
 
                 {{-- Render Existing Messages --}}
@@ -151,7 +161,7 @@
                                         </div>
                                     @endif
                                     @if($msg['content'])
-                                        <div class="px-1 py-0.5 whitespace-pre-wrap">{{ $msg['content'] }}</div>
+                                        <div class="px-1 py-0.5 whitespace-pre-wrap [overflow-wrap:anywhere] break-words">{{ $msg['content'] }}</div>
                                     @endif
                                 </div>
                             </div>
@@ -212,22 +222,36 @@
                         id="message-input"
                         name="message"
                         placeholder="Message Phakhaolao AI..."
+                        data-i18n-ph="placeholder"
                         autocomplete="off"
-                        class="w-full pl-12 pr-14 py-4 bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-[15px] placeholder:text-zinc-400"
+                        class="w-full pl-12 pr-24 py-4 bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-[15px] placeholder:text-zinc-400"
                     >
+                    <button
+                        type="button"
+                        id="mic-btn"
+                        title="Voice input"
+                        class="absolute right-12 top-1/2 -translate-y-1/2 p-2.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-14 0m7 7v3m-4 0h8M12 1a3 3 0 00-3 3v6a3 3 0 006 0V4a3 3 0 00-3-3z"></path>
+                        </svg>
+                    </button>
                     <button
                         type="submit"
                         id="send-btn"
                         class="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-zinc-900 dark:bg-indigo-600 text-white rounded-xl hover:bg-zinc-700 dark:hover:bg-indigo-500 disabled:opacity-30 disabled:hover:bg-zinc-900 dark:disabled:hover:bg-indigo-600 transition-all shadow-sm group"
                         disabled
                     >
-                        <svg class="w-5 h-5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="js-send-icon w-5 h-5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                        </svg>
+                        <svg class="js-stop-icon hidden w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <rect x="6" y="6" width="12" height="12" rx="2.5"></rect>
                         </svg>
                     </button>
                 </form>
                 <div class="text-center mt-2">
-                    <p class="text-xs text-zinc-400 dark:text-zinc-500">Phakhaolao AI can make mistakes. Consider checking important information.</p>
+                    <p class="text-xs text-zinc-400 dark:text-zinc-500" data-i18n="disclaimer">Phakhaolao AI can make mistakes. Consider checking important information.</p>
                 </div>
             </div>
         </footer>
@@ -236,11 +260,11 @@
 
 <div id="delete-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 px-4">
     <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-zinc-900">
-        <h3 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Delete conversation?</h3>
-        <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">This will permanently delete this conversation and all messages.</p>
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100" data-i18n="delete_title">Delete conversation?</h3>
+        <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300" data-i18n="delete_body">This will permanently delete this conversation and all messages.</p>
         <div class="mt-5 flex items-center justify-end gap-2">
-            <button id="delete-modal-cancel" type="button" class="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Cancel</button>
-            <button id="delete-modal-confirm" type="button" class="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-500">Delete</button>
+            <button id="delete-modal-cancel" type="button" class="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800" data-i18n="cancel">Cancel</button>
+            <button id="delete-modal-confirm" type="button" class="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-500" data-i18n="delete">Delete</button>
         </div>
     </div>
 </div>
@@ -376,6 +400,75 @@ document.addEventListener('DOMContentLoaded', function () {
     const dropOverlay = document.getElementById('drop-overlay');
 
     let isStreaming = false;
+    let abortController = null;
+
+    // Answer-language switch (auto / en / lo), persisted in the browser.
+    const LANG_KEY = 'pkl_response_language';
+    function getResponseLanguage() {
+        return localStorage.getItem(LANG_KEY) || 'auto';
+    }
+
+    // Interface translations. "auto" and "en" use English; "lo" uses Lao.
+    const I18N = {
+        en: {
+            new_chat: 'New Chat',
+            recent: 'Recent',
+            switch_theme: 'Switch Theme',
+            welcome_title: 'How can I help you today?',
+            welcome_subtitle: 'Ask about Laos plants, animals, uses, habitats, and local species data from the PhaKhaoLao knowledge base.',
+            placeholder: 'Message Phakhaolao AI...',
+            disclaimer: 'Phakhaolao AI can make mistakes. Consider checking important information.',
+            delete_title: 'Delete conversation?',
+            delete_body: 'This will permanently delete this conversation and all messages.',
+            cancel: 'Cancel',
+            delete: 'Delete',
+        },
+        lo: {
+            new_chat: 'ສ້າງການສົນທະນາໃໝ່',
+            recent: 'ຫຼ້າສຸດ',
+            switch_theme: 'ສະຫຼັບຮູບແບບ',
+            welcome_title: 'ມື້ນີ້ຂ້ອຍຊ່ວຍຫຍັງທ່ານໄດ້ແດ່?',
+            welcome_subtitle: 'ຖາມກ່ຽວກັບພືດ, ສັດ, ການນຳໃຊ້, ຖິ່ນທີ່ຢູ່ ແລະ ຂໍ້ມູນຊະນິດພັນທ້ອງຖິ່ນຂອງລາວ ຈາກຖານຄວາມຮູ້ PhaKhaoLao.',
+            placeholder: 'ພິມຂໍ້ຄວາມຫາ Phakhaolao AI...',
+            disclaimer: 'Phakhaolao AI ອາດຈະຜິດພາດໄດ້. ກະລຸນາກວດສອບຂໍ້ມູນທີ່ສຳຄັນ.',
+            delete_title: 'ລຶບການສົນທະນາ?',
+            delete_body: 'ນີ້ຈະລຶບການສົນທະນານີ້ ແລະ ຂໍ້ຄວາມທັງໝົດຢ່າງຖາວອນ.',
+            cancel: 'ຍົກເລີກ',
+            delete: 'ລຶບ',
+        },
+    };
+    let defaultPlaceholder = I18N.en.placeholder;
+
+    function interfaceLang() {
+        return getResponseLanguage() === 'lo' ? 'lo' : 'en';
+    }
+    function applyInterfaceLanguage() {
+        const t = I18N[interfaceLang()];
+        document.querySelectorAll('[data-i18n]').forEach((el) => {
+            const k = el.dataset.i18n;
+            if (t[k]) el.textContent = t[k];
+        });
+        document.querySelectorAll('[data-i18n-ph]').forEach((el) => {
+            const k = el.dataset.i18nPh;
+            if (t[k]) el.placeholder = t[k];
+        });
+        defaultPlaceholder = t.placeholder;
+    }
+
+    function applyLanguageSwitch() {
+        const cur = getResponseLanguage();
+        document.querySelectorAll('.js-lang-opt').forEach((btn) => {
+            btn.classList.toggle('is-active', btn.dataset.lang === cur);
+        });
+        applyInterfaceLanguage();
+    }
+    document.querySelectorAll('.js-lang-opt').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            localStorage.setItem(LANG_KEY, btn.dataset.lang);
+            applyLanguageSwitch();
+        });
+    });
+    applyLanguageSwitch();
     let selectedImageFile = null;
 
     // Drag and Drop handlers
@@ -433,7 +526,23 @@ document.addEventListener('DOMContentLoaded', function () {
     handleBrokenImages(messagesContainer);
 
     function updateSendButton() {
-        sendBtn.disabled = (input.value.trim().length === 0 && !selectedImageFile) || isStreaming;
+        const sendIcon = sendBtn.querySelector('.js-send-icon');
+        const stopIcon = sendBtn.querySelector('.js-stop-icon');
+
+        if (isStreaming) {
+            // Turn the send button into a Stop button while generating.
+            sendBtn.disabled = false;
+            sendBtn.title = 'Stop generating';
+            sendBtn.setAttribute('aria-label', 'Stop generating');
+            sendIcon?.classList.add('hidden');
+            stopIcon?.classList.remove('hidden');
+        } else {
+            sendBtn.title = 'Send';
+            sendBtn.setAttribute('aria-label', 'Send');
+            sendIcon?.classList.remove('hidden');
+            stopIcon?.classList.add('hidden');
+            sendBtn.disabled = (input.value.trim().length === 0 && !selectedImageFile);
+        }
     }
 
     // Enable/Disable send button based on input or image
@@ -443,7 +552,6 @@ document.addEventListener('DOMContentLoaded', function () {
     uploadBtn.addEventListener('click', () => imageInput.click());
 
     // Handle file selection
-    const defaultPlaceholder = 'Message Phakhaolao AI...';
     const imagePlaceholder = 'Add species name for better results (optional)...';
 
     imageInput.addEventListener('change', function () {
@@ -496,7 +604,7 @@ document.addEventListener('DOMContentLoaded', function () {
             content += `<div class="px-1 py-0.5 whitespace-pre-wrap">${escapeHtml(text)}</div>`;
         }
 
-        div.innerHTML = `<div class="max-w-[85%] md:max-w-[75%] px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white text-[15px] leading-relaxed shadow-sm">${content}</div>`;
+        div.innerHTML = `<div class="max-w-[85%] md:max-w-[75%] px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white text-[15px] leading-relaxed shadow-sm [overflow-wrap:anywhere] break-words">${content}</div>`;
         messagesContainer.appendChild(div);
         scrollToBottom();
     }
@@ -577,7 +685,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return DOMPurify.sanitize(html, {
                 ADD_TAGS: ['canvas'],
                 ALLOWED_TAGS: ['a', 'b', 'strong', 'em', 'i', 'code', 'pre', 'br', 'div', 'span', 'img', 'svg', 'path', 'ul', 'ol', 'li', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
-                ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'src', 'alt', 'loading', 'data-fallback-img', 'viewBox', 'fill', 'stroke', 'stroke-linecap', 'stroke-linejoin', 'stroke-width', 'd', 'width', 'height'],
+                ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'src', 'alt', 'loading', 'referrerpolicy', 'data-fallback-img', 'viewBox', 'fill', 'stroke', 'stroke-linecap', 'stroke-linejoin', 'stroke-width', 'd', 'width', 'height'],
                 ALLOW_DATA_ATTR: false,
             });
         }
@@ -605,6 +713,135 @@ document.addEventListener('DOMContentLoaded', function () {
         renderChart(container.querySelector('canvas'), chart);
     }
 
+    // --- Text-to-speech with progressive (sentence-by-sentence) playback ---
+    const SPEAKER_SVG = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M17.657 6.343a8 8 0 010 11.314M11 5L6 9H2v6h4l5 4V5z"></path></svg>';
+    const STOP_AUDIO_SVG = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>';
+    const SPINNER_SVG = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>';
+    let currentAudio = null;
+    let currentSpeakBtn = null;
+    let speakToken = 0;
+
+    function setSpeakState(btn, state) {
+        if (!btn) return;
+        btn.innerHTML = state === 'loading' ? SPINNER_SVG : (state === true ? STOP_AUDIO_SVG : SPEAKER_SVG);
+    }
+    function stopSpeaking() {
+        speakToken++;
+        if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+        if (currentSpeakBtn) { setSpeakState(currentSpeakBtn, false); currentSpeakBtn = null; }
+    }
+    function splitSpeechChunks(text, maxLen = 240) {
+        const parts = text.match(/[^.!?။\n]+[.!?။\n]*/gu) || [text];
+        const chunks = [];
+        let cur = '';
+        for (const p of parts) {
+            if (cur && (cur + p).length > maxLen) { chunks.push(cur.trim()); cur = ''; }
+            cur += p;
+        }
+        if (cur.trim()) chunks.push(cur.trim());
+        return chunks.length ? chunks : [text];
+    }
+    function fetchSpeech(text) {
+        return fetch('{{ route("tts") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+            body: JSON.stringify({ text: text.slice(0, 3000) }),
+        }).then((r) => { if (!r.ok) throw new Error('tts'); return r.blob(); })
+          .then((blob) => URL.createObjectURL(blob));
+    }
+    function speak(text, btn) {
+        text = (text || '').trim();
+        if (!text) return;
+        if (btn && btn === currentSpeakBtn) { stopSpeaking(); return; }
+        stopSpeaking();
+        const token = ++speakToken;
+        currentSpeakBtn = btn;
+        setSpeakState(btn, 'loading');
+
+        const chunks = splitSpeechChunks(text);
+        let idx = 0;
+        // Start the first sentence right away; prefetch the next while playing.
+        let nextUrl = fetchSpeech(chunks[0]).catch(() => null);
+
+        const finish = () => {
+            if (token === speakToken) { setSpeakState(btn, false); currentSpeakBtn = null; currentAudio = null; }
+        };
+        const playNext = async () => {
+            if (token !== speakToken) return;
+            if (idx >= chunks.length) { finish(); return; }
+            const url = await nextUrl;
+            if (token !== speakToken) return;
+            if (!url) { finish(); return; }
+            idx++;
+            nextUrl = idx < chunks.length ? fetchSpeech(chunks[idx]).catch(() => null) : Promise.resolve(null);
+            const audio = new Audio(url);
+            currentAudio = audio;
+            setSpeakState(btn, true);
+            audio.onended = () => { URL.revokeObjectURL(url); playNext(); };
+            audio.onerror = () => { URL.revokeObjectURL(url); playNext(); };
+            audio.play().catch(() => {});
+        };
+        playNext();
+    }
+    const COPY_SVG = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>';
+    const CHECK_SVG = '<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+
+    function getRawText(proseEl) {
+        const raw = proseEl.closest('.chat-message')?.querySelector('.js-assistant-raw');
+        if (raw && typeof raw.value === 'string' && raw.value.trim()) return raw.value;
+        if (proseEl.dataset.raw) return proseEl.dataset.raw;
+        return proseEl.textContent || '';
+    }
+    function copyMessage(proseEl, btn) {
+        const text = getRawText(proseEl).trim();
+        if (!text) return;
+        const done = () => {
+            btn.innerHTML = CHECK_SVG;
+            setTimeout(() => { btn.innerHTML = COPY_SVG; }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+        } else {
+            fallbackCopy(text, done);
+        }
+    }
+    function fallbackCopy(text, done) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+    }
+    function addMessageActions(proseEl) {
+        if (!proseEl || proseEl.dataset.actionsAdded) return;
+        if (!(proseEl.textContent || '').trim()) return;
+        proseEl.dataset.actionsAdded = '1';
+
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 mt-1.5';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.title = 'Copy';
+        copyBtn.className = 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors';
+        copyBtn.innerHTML = COPY_SVG;
+        copyBtn.addEventListener('click', () => copyMessage(proseEl, copyBtn));
+
+        const speakBtn = document.createElement('button');
+        speakBtn.type = 'button';
+        speakBtn.title = 'Listen';
+        speakBtn.className = 'js-speak-btn text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors';
+        speakBtn.innerHTML = SPEAKER_SVG;
+        speakBtn.addEventListener('click', () => speak(proseEl.textContent || '', speakBtn));
+
+        row.appendChild(copyBtn);
+        row.appendChild(speakBtn);
+        proseEl.parentElement.appendChild(row);
+    }
+
     function renderExistingAssistantMessages() {
         document.querySelectorAll('.chat-message').forEach((messageEl) => {
             const rawEl = messageEl.querySelector('.js-assistant-raw');
@@ -614,6 +851,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             renderAssistantContent(renderedEl, rawEl.value || '');
+            addMessageActions(renderedEl);
         });
     }
 
@@ -623,10 +861,15 @@ document.addEventListener('DOMContentLoaded', function () {
         return div.innerHTML;
     }
 
+    function stopGeneration() {
+        if (abortController) abortController.abort();
+    }
+
     async function sendMessage(message) {
         if (isStreaming) return;
         isStreaming = true;
-        sendBtn.disabled = true;
+        abortController = new AbortController();
+        updateSendButton();
         input.value = '';
 
         // Capture image before clearing
@@ -648,6 +891,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const formData = new FormData();
             formData.append('message', message);
             formData.append('conversation_id', currentConversationId || '');
+            const respLang = getResponseLanguage();
+            if (respLang === 'en' || respLang === 'lo') {
+                formData.append('response_language', respLang);
+            }
             if (imageFile) {
                 formData.append('image', imageFile);
             }
@@ -656,6 +903,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 method: 'POST',
                 headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'text/event-stream' },
                 body: formData,
+                signal: abortController.signal,
             });
 
             if (!response.ok) {
@@ -704,6 +952,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (fullText) {
+                bubble.dataset.raw = fullText;
+                addMessageActions(bubble);
                 const saveResponse = await fetch('{{ route("chat.save-response") }}', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
@@ -725,11 +975,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         } catch (error) {
-            console.error('Chat error:', error);
-            showError(error.message || 'Something went wrong.');
-            bubble.parentElement.parentElement.remove();
+            // User pressed Stop — remove the pending bubble, no error toast.
+            if (error.name === 'AbortError') {
+                bubble.parentElement.parentElement.remove();
+            } else {
+                console.error('Chat error:', error);
+                showError(error.message || 'Something went wrong.');
+                bubble.parentElement.parentElement.remove();
+            }
         } finally {
             isStreaming = false;
+            abortController = null;
+            updateSendButton();
             input.focus();
         }
     }
@@ -738,10 +995,10 @@ document.addEventListener('DOMContentLoaded', function () {
         text = text.replace(/https:\/\/species\.phakhaolao\.la\/species\/(\d+)/gi, 'https://species.phakhaolao.la/search/specie_details/$1');
         let html = escapeHtml(text);
         html = html.replace(/```([\s\S]*?)```/g, '<pre class="bg-zinc-900 text-zinc-100 p-3 rounded-lg my-2 overflow-x-auto text-sm"><code>$1</code></pre>');
-        html = html.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, '<div class="my-3 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm"><img src="$2" alt="$1" loading="lazy" class="max-h-80 w-auto object-contain" data-fallback-img /></div>');
+        html = html.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, '<img src="$2" alt="$1" loading="lazy" referrerpolicy="no-referrer" class="pk-chat-img" data-fallback-img />');
         html = html.replace(/(^|[\s>])(https?:\/\/[^\s<>"']+\.(?:png|jpe?g|gif|webp)(?:\?[^\s<>"']*)?)(?=$|[\s<])/gmi, (full, prefix, url) => {
             const clean = String(url).replace(/[.,;:!?)]+$/g, '');
-            return `${prefix}<div class="my-3 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm"><img src="${clean}" alt="species image" loading="lazy" class="max-h-80 w-auto object-contain" data-fallback-img /></div>`;
+            return `${prefix}<img src="${clean}" alt="species image" loading="lazy" referrerpolicy="no-referrer" class="pk-chat-img" data-fallback-img />`;
         });
         html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 underline">$1</a>');
         html = html.replace(/(^|[\s>])(https?:\/\/[^\s<>"']+)(?=$|[\s<])/gmi, (full, prefix, url) => {
@@ -754,6 +1011,20 @@ document.addEventListener('DOMContentLoaded', function () {
         html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
         html = html.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded-md bg-zinc-200 dark:bg-zinc-700 text-sm font-mono">$1</code>');
         html = html.replace(/\n/g, '<br>');
+        // Group consecutive images into a compact thumbnail grid (single image stays medium).
+        html = html.replace(/(?:<img[^>]*class="pk-chat-img[^>]*>(?:\s*<br>\s*)?)+/g, (run) => {
+            let imgs = run.replace(/<br>/g, '').trim();
+            const count = (imgs.match(/<img/g) || []).length;
+            const border = 'rounded-lg border border-zinc-200 dark:border-zinc-700';
+
+            if (count === 1) {
+                imgs = imgs.replace(/class="pk-chat-img[^"]*"/, `class="w-full h-auto max-h-64 object-contain ${border}"`);
+                return `<div class="my-3 max-w-[16rem]">${imgs}</div>`;
+            }
+
+            imgs = imgs.replace(/class="pk-chat-img[^"]*"/g, `class="w-full h-24 sm:h-28 object-cover ${border}"`);
+            return `<div class="grid grid-cols-3 sm:grid-cols-4 gap-1.5 my-3 max-w-md">${imgs}</div>`;
+        });
         return html;
     }
 
@@ -790,9 +1061,80 @@ document.addEventListener('DOMContentLoaded', function () {
 
     form.addEventListener('submit', (e) => {
         e.preventDefault();
+        // While generating, the button acts as a Stop button.
+        if (isStreaming) {
+            stopGeneration();
+            return;
+        }
         const msg = input.value.trim();
         if (msg || selectedImageFile) sendMessage(msg);
     });
+
+    // --- Voice input (speech-to-text via Google STT) ---
+    const micBtn = document.getElementById('mic-btn');
+    const MIC_SVG = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-14 0m7 7v3m-4 0h8M12 1a3 3 0 00-3 3v6a3 3 0 006 0V4a3 3 0 00-3-3z"></path></svg>';
+    const MIC_STOP_SVG = '<svg class="w-5 h-5 text-red-500 animate-pulse" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>';
+    const MIC_SPINNER_SVG = '<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>';
+    let mediaRecorder = null;
+    let audioChunks = [];
+
+    function setMicState(state) {
+        if (!micBtn) return;
+        micBtn.disabled = state === 'transcribing';
+        micBtn.innerHTML = state === 'recording' ? MIC_STOP_SVG : (state === 'transcribing' ? MIC_SPINNER_SVG : MIC_SVG);
+        micBtn.title = state === 'recording' ? 'Stop recording' : 'Voice input';
+    }
+    async function startRecording() {
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+            showError('Microphone access is required for voice input.');
+            return;
+        }
+        audioChunks = [];
+        const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+        mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+        mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+            stream.getTracks().forEach((t) => t.stop());
+            transcribeAudio(new Blob(audioChunks, { type: 'audio/webm' }));
+        };
+        mediaRecorder.start();
+        setMicState('recording');
+    }
+    function transcribeAudio(blob) {
+        if (!blob || !blob.size) { setMicState('idle'); return; }
+        setMicState('transcribing');
+        const fd = new FormData();
+        fd.append('audio', blob, 'recording.webm');
+        // Send the switch value; for "auto" the backend detects Lao vs English.
+        fd.append('language', getResponseLanguage());
+        fetch('{{ route("transcribe") }}', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': csrfToken },
+            body: fd,
+        }).then((r) => r.json()).then((data) => {
+            setMicState('idle');
+            const text = (data && data.text) ? String(data.text).trim() : '';
+            if (text) {
+                input.value = input.value.trim() ? (input.value.trim() + ' ' + text) : text;
+                input.focus();
+                updateSendButton();
+            } else {
+                showError('Could not transcribe the audio. Please try again.');
+            }
+        }).catch(() => { setMicState('idle'); showError('Voice transcription failed.'); });
+    }
+    if (micBtn) {
+        micBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            } else {
+                startRecording();
+            }
+        });
+    }
 
     deleteModalCancel.addEventListener('click', closeDeleteModal);
     deleteModalConfirm.addEventListener('click', async () => {
@@ -816,5 +1158,13 @@ document.addEventListener('DOMContentLoaded', function () {
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e4e4e7; border-radius: 20px; }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3f3f46; }
+/* Break long URLs/words so a message never forces horizontal scroll. */
+.prose, .prose a, .whitespace-pre-wrap { overflow-wrap: anywhere; word-break: break-word; }
+.prose pre { overflow-x: auto; max-width: 100%; }
+/* Answer-language switch active state (build-independent). */
+.js-lang-opt { color: #71717a; }
+.js-lang-opt.is-active { background: #ffffff; color: #18181b; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.dark .js-lang-opt { color: #a1a1aa; }
+.dark .js-lang-opt.is-active { background: #3f3f46; color: #ffffff; }
 </style>
 @endsection

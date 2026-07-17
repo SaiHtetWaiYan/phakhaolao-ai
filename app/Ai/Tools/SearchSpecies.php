@@ -23,8 +23,11 @@ class SearchSpecies implements Tool
         'common_name_english',
         'family',
         'category',
+        'category_en',
         'subcategory',
+        'subcategory_en',
         'species_type',
+        'species_type_en',
         'data_collection_level',
         'botanical_description',
         'lao_distribution',
@@ -43,50 +46,11 @@ class SearchSpecies implements Tool
     ];
 
     /**
-     * English/Lao category mappings.
+     * Cached distinct taxon values from the database, keyed by column.
      *
-     * @var array<string, string>
+     * @var array<string, list<array{lo: string, en: string}>>
      */
-    private const CATEGORY_MAP = [
-        'animal' => 'ສັດ',
-        'animals' => 'ສັດ',
-        'plant' => 'ພືດ',
-        'plants' => 'ພືດ',
-        'fungi' => 'ເຫັດ',
-        'fungus' => 'ເຫັດ',
-        'ສັດ' => 'ສັດ',
-        'ພືດ' => 'ພືດ',
-        'ເຫັດ' => 'ເຫັດ',
-    ];
-
-    /**
-     * English/Lao subcategory mappings.
-     *
-     * @var array<string, string>
-     */
-    private const SUBCATEGORY_MAP = [
-        'fish' => 'ປາ',
-        'fishes' => 'ປາ',
-        'mammal' => 'ສັດລ້ຽງລູກດ້ວຍນົມ',
-        'mammals' => 'ສັດລ້ຽງລູກດ້ວຍນົມ',
-        'bird' => 'ນົກ',
-        'birds' => 'ນົກ',
-        'reptile' => 'ສັດເລືອຄານ',
-        'reptiles' => 'ສັດເລືອຄານ',
-        'amphibian' => 'ສັດເຄິ່ງບົກເຄິ່ງນ້ຳ',
-        'amphibians' => 'ສັດເຄິ່ງບົກເຄິ່ງນ້ຳ',
-        'insect' => 'ແມງໄມ້',
-        'insects' => 'ແມງໄມ້',
-        'tree' => 'ໄມ້ຢືນຕົ້ນ',
-        'trees' => 'ໄມ້ຢືນຕົ້ນ',
-        'ປາ' => 'ປາ',
-        'ນົກ' => 'ນົກ',
-        'ສັດລ້ຽງລູກດ້ວຍນົມ' => 'ສັດລ້ຽງລູກດ້ວຍນົມ',
-        'ສັດເລືອຄານ' => 'ສັດເລືອຄານ',
-        'ສັດເຄິ່ງບົກເຄິ່ງນ້ຳ' => 'ສັດເຄິ່ງບົກເຄິ່ງນ້ຳ',
-        'ແມງໄມ້' => 'ແມງໄມ້',
-        'ໄມ້ຢືນຕົ້ນ' => 'ໄມ້ຢືນຕົ້ນ',
-    ];
+    private array $taxonCache = [];
 
     /**
      * Get the description of the tool's purpose.
@@ -160,7 +124,10 @@ class SearchSpecies implements Tool
         return Species::query()
             ->where('scrape_status', 'scraped')
             ->when($categoryFilter, fn ($q) => $q->where('category', $categoryFilter))
-            ->when($subcategoryFilter, fn ($q) => $q->where('subcategory', $subcategoryFilter))
+            ->when($subcategoryFilter, fn ($q) => $q->where(function ($inner) use ($subcategoryFilter) {
+                $inner->where('subcategory', $subcategoryFilter)
+                    ->orWhere('species_type', $subcategoryFilter);
+            }))
             ->inRandomOrder()
             ->limit($limit)
             ->get();
@@ -204,30 +171,12 @@ class SearchSpecies implements Tool
 
     /**
      * Detect category filter only when the query is primarily about the category
-     * (no other meaningful non-stopword keywords remain).
+     * (no other meaningful non-stopword keywords remain). Matches the query against
+     * the live category values in the database (Lao and English), not a fixed list.
      */
     private function detectCategory(string $query): ?string
     {
-        $words = preg_split('/\s+/u', mb_strtolower(trim($query))) ?: [];
-        $categoryWord = null;
-
-        foreach ($words as $word) {
-            if (isset(self::CATEGORY_MAP[$word])) {
-                $categoryWord = $word;
-                break;
-            }
-        }
-
-        if ($categoryWord === null) {
-            return null;
-        }
-
-        // Only filter by category when remaining words are all stopwords/category terms
-        if (! $this->isCategoryOnlyQuery($words)) {
-            return null;
-        }
-
-        return self::CATEGORY_MAP[$categoryWord];
+        return $this->detectTaxon($query, 'category');
     }
 
     /**
@@ -235,55 +184,110 @@ class SearchSpecies implements Tool
      */
     private function detectSubcategory(string $query): ?string
     {
-        $words = preg_split('/\s+/u', mb_strtolower(trim($query))) ?: [];
-        $subcategoryWord = null;
-
-        foreach ($words as $word) {
-            if (isset(self::SUBCATEGORY_MAP[$word])) {
-                $subcategoryWord = $word;
-                break;
-            }
-        }
-
-        if ($subcategoryWord === null) {
-            return null;
-        }
-
-        if (! $this->isCategoryOnlyQuery($words)) {
-            return null;
-        }
-
-        return self::SUBCATEGORY_MAP[$subcategoryWord];
+        return $this->detectTaxon($query, 'subcategory');
     }
 
     /**
-     * Check if a query consists only of category/subcategory terms and stopwords.
+     * Match a category-only query against the distinct values stored in the given
+     * column, returning the canonical Lao value to filter on.
+     */
+    private function detectTaxon(string $query, string $column): ?string
+    {
+        $words = preg_split('/\s+/u', mb_strtolower(trim($query))) ?: [];
+        $match = null;
+
+        foreach ($words as $word) {
+            foreach ($this->taxonValues($column) as $pair) {
+                if ($this->wordMatchesValue($word, $pair['lo']) || $this->wordMatchesValue($word, $pair['en'])) {
+                    $match = $pair['lo'];
+                    break 2;
+                }
+            }
+        }
+
+        if ($match === null || ! $this->isTaxonOnlyQuery($words)) {
+            return null;
+        }
+
+        return $match;
+    }
+
+    /**
+     * Check if a query consists only of taxon terms (category or subcategory, in
+     * either language) and stopwords.
      *
      * @param  list<string>  $words
      */
-    private function isCategoryOnlyQuery(array $words): bool
+    private function isTaxonOnlyQuery(array $words): bool
     {
         $stopwords = [
             'tell', 'me', 'about', 'what', 'is', 'the', 'a', 'an', 'for', 'in', 'on', 'and', 'of',
             'show', 'find', 'search', 'species', 'please', 'list', 'some', 'all', 'lao', 'laos',
         ];
 
+        $pairs = [...$this->taxonValues('category'), ...$this->taxonValues('subcategory')];
+
         foreach ($words as $word) {
-            if (isset(self::CATEGORY_MAP[$word]) || isset(self::SUBCATEGORY_MAP[$word])) {
-                continue;
-            }
-            if (in_array($word, $stopwords, true)) {
-                continue;
-            }
-            if (mb_strlen($word) < 2) {
+            if (in_array($word, $stopwords, true) || mb_strlen($word) < 2) {
                 continue;
             }
 
-            // A meaningful keyword exists — don't filter by category
-            return false;
+            $isTaxon = false;
+            foreach ($pairs as $pair) {
+                if ($this->wordMatchesValue($word, $pair['lo']) || $this->wordMatchesValue($word, $pair['en'])) {
+                    $isTaxon = true;
+                    break;
+                }
+            }
+
+            if (! $isTaxon) {
+                return false;
+            }
         }
 
         return true;
+    }
+
+    /**
+     * A query word matches a stored value when it is equal, or the singular/plural
+     * variant (e.g. "bird" matches "Birds"). Case-insensitive, both languages.
+     */
+    private function wordMatchesValue(string $word, string $value): bool
+    {
+        $w = mb_strtolower(trim($word));
+        $v = mb_strtolower(trim($value));
+
+        if ($w === '' || $v === '') {
+            return false;
+        }
+
+        return $w === $v || $v === $w.'s' || $w === $v.'s';
+    }
+
+    /**
+     * Distinct (Lao, English) value pairs for a taxon column, loaded from the
+     * database once per request.
+     *
+     * @return list<array{lo: string, en: string}>
+     */
+    private function taxonValues(string $column): array
+    {
+        if (isset($this->taxonCache[$column])) {
+            return $this->taxonCache[$column];
+        }
+
+        return $this->taxonCache[$column] = Species::query()
+            ->where('scrape_status', 'scraped')
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->select($column, "{$column}_en")
+            ->distinct()
+            ->get()
+            ->map(fn (Species $s): array => [
+                'lo' => (string) $s->{$column},
+                'en' => (string) ($s->{"{$column}_en"} ?? ''),
+            ])
+            ->all();
     }
 
     /**
@@ -300,37 +304,10 @@ class SearchSpecies implements Tool
             'show', 'find', 'search', 'species', 'please',
         ];
 
-        $keywords = array_values(array_unique(array_filter(
+        return array_values(array_unique(array_filter(
             $parts,
             fn (string $part) => mb_strlen($part) >= 2 && ! in_array($part, $stopwords, true)
         )));
-
-        $expanded = [];
-        $joined = ' '.implode(' ', $keywords).' ';
-
-        $expansions = [
-            'medicinal' => ['medicine', 'herb', 'herbal', 'ພືດເປັນຢາ'],
-            'edible' => ['food', 'ອາຫານ'],
-            'endangered' => ['threatened', 'iucn', 'ໃກ້ຖືກຄຸກຄາມ'],
-            'invasive' => ['ຮຸກຮານ'],
-            'plant' => ['ພືດ'],
-            'plants' => ['ພືດ'],
-            'animal' => ['ສັດ'],
-            'animals' => ['ສັດ'],
-            'fish' => ['ປາ'],
-            'bird' => ['ນົກ'],
-            'birds' => ['ນົກ'],
-            'tree' => ['ໄມ້ຢືນຕົ້ນ'],
-            'trees' => ['ໄມ້ຢືນຕົ້ນ'],
-        ];
-
-        foreach ($expansions as $seed => $aliases) {
-            if (str_contains($joined, ' '.$seed.' ')) {
-                $expanded = [...$expanded, $seed, ...$aliases];
-            }
-        }
-
-        return array_values(array_unique([...$keywords, ...$expanded]));
     }
 
     private function shouldUseSemanticSearch(string $query): bool
@@ -476,6 +453,9 @@ class SearchSpecies implements Tool
         if ($botanicalDescription = $this->cleanText($species->botanical_description)) {
             $parts[] = 'Description: '.$this->truncateText($botanicalDescription, $concise ? 260 : 420);
         }
+        if (($botanicalDescriptionEn = $this->cleanText($species->botanical_description_en)) && $botanicalDescriptionEn !== $botanicalDescription) {
+            $parts[] = 'Description (English): '.$this->truncateText($botanicalDescriptionEn, $concise ? 260 : 420);
+        }
         if (! empty($species->use_types)) {
             $cleanUseTypes = array_values(array_filter(
                 array_map(fn ($v) => $this->cleanText(is_string($v) ? $v : null), $species->use_types)
@@ -486,6 +466,9 @@ class SearchSpecies implements Tool
         }
         if ($useDescription = $this->cleanText($species->use_description)) {
             $parts[] = 'Use details: '.$this->truncateText($useDescription, $concise ? 220 : 380);
+        }
+        if (($useDescriptionEn = $this->cleanText($species->use_description_en)) && $useDescriptionEn !== $useDescription) {
+            $parts[] = 'Use details (English): '.$this->truncateText($useDescriptionEn, $concise ? 220 : 380);
         }
         if ($localNames = $this->formatStringArray($species->local_names ?? null, $concise ? 5 : 10)) {
             $parts[] = "Local names: {$localNames}";
@@ -588,11 +571,63 @@ class SearchSpecies implements Tool
         if ($marketData = $this->cleanText($species->market_data)) {
             $parts[] = 'Market: '.$this->truncateText($marketData, 180);
         }
-        if ($references = $this->formatStringArray($species->references ?? null, $concise ? 4 : 8)) {
+        if ($references = $this->formatReferences($species->references ?? null, $concise ? 4 : 8)) {
             $parts[] = "References: {$references}";
+        }
+        if ($externalLinks = $this->formatExternalLinks($species->external_links ?? null)) {
+            $parts[] = "External links: {$externalLinks}";
         }
 
         return implode("\n", $parts);
+    }
+
+    /**
+     * Render the references array, which stores entries as {type, content} objects.
+     */
+    private function formatReferences(mixed $value, int $limit = 8): ?string
+    {
+        if (! is_array($value) || $value === []) {
+            return null;
+        }
+
+        $parts = collect($value)
+            ->map(function (mixed $item): ?string {
+                if (is_array($item)) {
+                    return $this->cleanText($item['content'] ?? null);
+                }
+
+                return $this->cleanText(is_scalar($item) ? (string) $item : null);
+            })
+            ->filter()
+            ->take(max(1, $limit))
+            ->values()
+            ->all();
+
+        return $parts === [] ? null : implode("\n", $parts);
+    }
+
+    /**
+     * Render the external_links map (e.g. iNaturalist, RedList, YouTube) as a flat list.
+     */
+    private function formatExternalLinks(mixed $value): ?string
+    {
+        if (! is_array($value) || $value === []) {
+            return null;
+        }
+
+        $urls = [];
+
+        foreach ($value as $link) {
+            foreach ((array) $link as $url) {
+                if ($clean = $this->cleanText(is_scalar($url) ? (string) $url : null)) {
+                    $urls[] = $clean;
+                }
+            }
+        }
+
+        $urls = array_slice(array_values(array_unique($urls)), 0, 8);
+
+        return $urls === [] ? null : implode(', ', $urls);
     }
 
     private function formatStringArray(mixed $value, int $limit = 10): ?string
