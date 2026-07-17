@@ -47,30 +47,41 @@ class SearchChampions implements Tool
         $query = trim((string) ($request['query'] ?? ''));
         $language = strtolower(trim((string) ($request['language'] ?? '')));
 
-        if ($query === '') {
-            return 'Please provide a search term (a name, sector, province, or topic).';
-        }
-
-        $champions = Champion::query()
+        $base = Champion::query()
             ->when(in_array($language, ['en', 'lo'], true), fn (Builder $q) => $q->where('language', $language))
-            ->where(function (Builder $outer) use ($query): void {
+            ->when($query !== '', fn (Builder $q) => $q->where(function (Builder $outer) use ($query): void {
                 foreach (self::TEXT_COLUMNS as $column) {
                     $outer->orWhere($column, 'like', "%{$query}%");
                 }
                 foreach (self::JSON_COLUMNS as $column) {
                     $outer->orWhereRaw("{$column}::text ilike ?", ["%{$query}%"]);
                 }
-            })
-            ->orderByRaw('CASE WHEN name ilike ? THEN 0 ELSE 1 END', ["%{$query}%"])
-            ->limit(self::LIMIT)
-            ->get();
+            }));
 
-        if ($champions->isEmpty()) {
+        $total = (clone $base)->count();
+
+        if ($total === 0) {
             return "No champions found matching '{$query}'. Try a sector (farming, coffee), a province, "
                 .'an actor type (private sector, cooperative, researcher), or a name.';
         }
 
-        return $champions->map(fn (Champion $c) => $this->format($c))->implode("\n---\n");
+        // No keyword = "how many / list all" — return the full roster of names with the exact total.
+        if ($query === '') {
+            $names = $base->orderBy('name')->pluck('name')->implode(', ');
+
+            return "There are {$total} champion profiles. They are: {$names}.";
+        }
+
+        $champions = $base
+            ->orderByRaw('CASE WHEN name ilike ? THEN 0 ELSE 1 END', ["%{$query}%"])
+            ->limit(self::LIMIT)
+            ->get();
+
+        $body = $champions->map(fn (Champion $c) => $this->format($c))->implode("\n---\n");
+
+        return $total > self::LIMIT
+            ? "{$total} champions match. Showing the first ".self::LIMIT.":\n\n{$body}"
+            : $body;
     }
 
     private function format(Champion $champion): string
@@ -116,8 +127,8 @@ class SearchChampions implements Tool
         return [
             'query' => $schema
                 ->string()
-                ->description('Search term: champion name, sector, topic, province, actor type, or keyword.')
-                ->required(),
+                ->description('Search term: champion name, sector, topic, province, actor type, or keyword. '
+                    .'Leave empty to list every champion with the exact total (use for "how many champions").'),
             'language' => $schema
                 ->string()
                 ->description('Optional language to restrict results to: "en" or "lo". Match the user\'s language.'),

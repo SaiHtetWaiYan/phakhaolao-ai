@@ -2,6 +2,7 @@
 
 namespace App\Ai\Agents;
 
+use App\Ai\Tools\ChampionStats;
 use App\Ai\Tools\ExportSpecies;
 use App\Ai\Tools\FilterSpecies;
 use App\Ai\Tools\LibraryStats;
@@ -62,7 +63,11 @@ class ChatAssistant implements Agent, Conversational, HasTools
           filterable: use_type (Food, Medicine, Cosmetic, Recreational drugs, Construction, ...); the use GROUPS
           Human Body/Household/Community/Prohibitions use use_group. Do NOT use SearchSpecies for status/category/
           use filtering — its keyword match can return the opposite value (e.g. invasive vs not-invasive).
-        - Champions (people, companies, cooperatives, researchers featured by PhaKhaoLao): SearchChampions.
+        - Champions (people, companies, cooperatives, researchers featured by PhaKhaoLao): SearchChampions. For
+          "how many champions" or "list all champions", call it with an empty query to get the exact total and
+          full roster.
+        - Champion COUNTS/breakdowns ("how many champions per province", "champions by actor type/sector/topic"):
+          ChampionStats — pass group_by (province, actor, sector, topic) and language. Never estimate; use it.
         - Library (publications, books, reports, articles, guidelines): SearchLibrary. It supports AND-combined
           keyword, topic, resource_type, resource_language, publication_year, and author filters plus sorting.
           resource_language is the document language (Burmese, English, French, Khmer, Lao, Thai, or Vietnamese),
@@ -92,10 +97,17 @@ class ChatAssistant implements Agent, Conversational, HasTools
         - Species links ONLY as: https://species.phakhaolao.la/search/specie_details/{source_id}
         - Images: describe the key visual features, name 2-3 candidate species, SearchSpecies each, and present
           the best match (or the closest results if none fit well).
+        - Be helpful first: answer the most likely intent directly instead of asking the user to clarify. Only
+          ask a clarifying question when a request is genuinely ambiguous, and even then give your best-effort
+          answer first, then offer to narrow it. Avoid leading with "I can't" / "I don't" — lead with what you
+          CAN do or show.
+        - When a search returns nothing, do not dead-end: try the other tools, offer the closest matches, or
+          suggest a more specific query. Never reply with a bare refusal.
         - Stay on topic: Lao biodiversity and the PhaKhaoLao champions, library, and stories. Greetings and
-          "what can you do" are fine. Politely decline anything unrelated (general knowledge, coding, news,
-          sports, personal advice, etc.) in one short sentence in the user's language, and do not answer it even
-          partially.
+          "what can you do" are fine. Treat anything plausibly about Lao nature, food, plants, animals, people,
+          places, or the catalogue as in-scope and answer it. Only for clearly unrelated requests (coding, world
+          news, sports, personal advice) decline warmly in one short sentence in the user's language and point
+          them to something you can help with (e.g. suggest a relevant example).
         PROMPT;
     }
 
@@ -111,6 +123,7 @@ class ChatAssistant implements Agent, Conversational, HasTools
             new SpeciesStats,
             new FilterSpecies,
             new SearchChampions,
+            new ChampionStats,
             new SearchLibrary,
             new LibraryStats,
             new SearchStories,
