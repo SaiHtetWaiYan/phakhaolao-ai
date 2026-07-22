@@ -18,10 +18,16 @@ class VoiceRecorder {
     if (!await _recorder.hasPermission()) return false;
 
     final directory = await getTemporaryDirectory();
-    _path = '${directory.path}/voice_input.webm';
+    _path = '${directory.path}/voice_input.ogg';
 
     await _recorder.start(
-      const RecordConfig(encoder: AudioEncoder.opus, numChannels: 1),
+      // Mono at Opus's native 48 kHz: the server reads the container to pick
+      // the matching encoding, and a mismatched rate is rejected outright.
+      const RecordConfig(
+        encoder: AudioEncoder.opus,
+        numChannels: 1,
+        sampleRate: 48000,
+      ),
       path: _path!,
     );
 
