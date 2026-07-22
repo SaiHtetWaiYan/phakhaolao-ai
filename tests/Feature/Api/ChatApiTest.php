@@ -185,3 +185,24 @@ it('detects the image type from its contents, not the client claim', function ()
 
     unlink($path);
 });
+
+// The photo lookup widens short requests with recent context. Reading that
+// context after storing the turn made the message widen itself.
+it('reads recent context before storing the incoming message', function () {
+    $conversation = makeConversation();
+
+    AgentConversationMessage::create([
+        'id' => (string) Str::uuid(),
+        'conversation_id' => $conversation->id,
+        'user_id' => null,
+        'role' => 'assistant',
+        'agent' => 'assistant',
+        'content' => 'Trachypithecus phayrei is a leaf monkey.',
+        'attachments' => [], 'tool_calls' => [], 'tool_results' => [], 'usage' => [], 'meta' => [],
+    ]);
+
+    $context = app(\App\Services\SpeciesImageResponder::class)->recentContext($conversation->id);
+
+    expect($context)->toContain('Trachypithecus phayrei')
+        ->and($context)->not->toContain('show me pics');
+});

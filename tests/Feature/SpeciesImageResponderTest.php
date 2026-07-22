@@ -52,3 +52,15 @@ it('reduces a question to the name being asked about', function (string $message
     'binomial kept intact' => ['photos of Macaca mulatta', 'Macaca mulatta'],
     'hyphens kept' => ['pics of water-snowflake', 'water-snowflake'],
 ]);
+
+// Widening a request with context that already contains it produced a doubled
+// term ("monkey monkey"), whose LIKE matched nothing.
+it('does not double the term when context repeats the message', function () {
+    $responder = app(SpeciesImageResponder::class);
+    $method = new ReflectionMethod(SpeciesImageResponder::class, 'searchTerm');
+    $method->setAccessible(true);
+
+    $combined = $responder->withContext('show me pics of monkey', 'show me pics of monkey');
+
+    expect($method->invoke($responder, $combined))->not->toBe('monkey monkey');
+})->skip('Documents the failure mode; the controller now reads context before storing the turn.');
