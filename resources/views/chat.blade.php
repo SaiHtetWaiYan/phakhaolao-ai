@@ -1068,7 +1068,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             return `${prefix}<a href="${clean}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 underline">${clean}</a>`;
         });
+        html = html.replace(/^\s{0,3}#{4,6}\s+(.+)$/gm, '<div class="font-semibold mt-3 mb-1">$1</div>');
+        html = html.replace(/^\s{0,3}###\s+(.+)$/gm, '<div class="font-semibold text-base mt-3 mb-1">$1</div>');
+        html = html.replace(/^\s{0,3}##\s+(.+)$/gm, '<div class="font-semibold text-lg mt-3 mb-1">$1</div>');
+        html = html.replace(/^\s{0,3}#\s+(.+)$/gm, '<div class="font-bold text-lg mt-3 mb-1">$1</div>');
         html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        // Single asterisks are italics, but only after bold has been consumed.
+        // Requiring non-space either side keeps "2 * 3 * 4" as arithmetic.
+        html = html.replace(/(^|[^*\w])\*(?!\s)([^*\n]+?)(?<!\s)\*(?!\*)/g, '$1<em>$2</em>');
         html = html.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded-md bg-zinc-200 dark:bg-zinc-700 text-sm font-mono">$1</code>');
         html = formatTables(html);
         html = html.replace(/\n/g, '<br>');
