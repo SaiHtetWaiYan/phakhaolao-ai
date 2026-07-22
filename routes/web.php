@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\SttController;
+use App\Http\Controllers\TableExportController;
 use App\Http\Controllers\TtsController;
 use App\Http\Middleware\RestrictToLocal;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +14,7 @@ Route::post('/chat/send', [ChatController::class, 'send'])->middleware('throttle
 Route::post('/chat/save-response', [ChatController::class, 'saveResponse'])->middleware('throttle:30,1')->name('chat.save-response');
 Route::post('/chat/clear', [ChatController::class, 'clear'])->middleware('throttle:10,1')->name('chat.clear');
 Route::delete('/chat/{id}', [ChatController::class, 'destroy'])->middleware('throttle:10,1')->name('chat.destroy');
+Route::post('/chat/export-table', [TableExportController::class, 'xlsx'])->middleware('throttle:20,1')->name('chat.export-table');
 Route::post('/tts', [TtsController::class, 'speak'])->middleware('throttle:60,1')->name('tts');
 Route::post('/transcribe', [SttController::class, 'transcribe'])->middleware('throttle:30,1')->name('transcribe');
 Route::get('/species/export-generated/{token}', [ChatController::class, 'downloadGeneratedExport'])->middleware('throttle:10,1')->name('species.export-generated');

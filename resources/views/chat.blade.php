@@ -1125,7 +1125,8 @@ document.addEventListener('DOMContentLoaded', function () {
             };
 
             const copyBtn = button('⧉ Copy', 'Copy the table (paste into Excel or Sheets)');
-            const csvBtn = button('↓ Download CSV', 'Download the table as a CSV file');
+            const excelBtn = button('↓ Excel', 'Download as a formatted Excel file');
+            const csvBtn = button('↓ CSV', 'Download as a plain CSV file');
 
             copyBtn.addEventListener('click', async () => {
                 const ok = await copyTable(table);
@@ -1133,9 +1134,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 setTimeout(() => { copyBtn.textContent = '⧉ Copy'; }, 1500);
             });
 
+            excelBtn.addEventListener('click', async () => {
+                const original = excelBtn.textContent;
+                excelBtn.textContent = 'Preparing…';
+                excelBtn.disabled = true;
+
+                const ok = await downloadTableXlsx(table);
+
+                excelBtn.textContent = ok ? original : 'Failed';
+                excelBtn.disabled = false;
+
+                if (!ok) setTimeout(() => { excelBtn.textContent = original; }, 1500);
+            });
+
             csvBtn.addEventListener('click', () => downloadTableCsv(table));
 
             bar.appendChild(copyBtn);
+            bar.appendChild(excelBtn);
             bar.appendChild(csvBtn);
             wrap.insertBefore(bar, wrap.firstChild);
         });
@@ -1178,21 +1193,51 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    /**
+     * Builds the workbook server-side, so the download keeps the header,
+     * borders and column widths rather than arriving as bare values.
+     */
+    async function downloadTableXlsx(table) {
+        try {
+            const response = await fetch('{{ route('chat.export-table') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name=\'csrf-token\']')?.content ?? '',
+                },
+                body: JSON.stringify({ rows: tableRows(table), title: 'Table' }),
+            });
+
+            if (!response.ok) return false;
+
+            const blob = await response.blob();
+            saveBlob(blob, `phakhaolao-table-${new Date().toISOString().slice(0, 10)}.xlsx`);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function saveBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    }
+
     function downloadTableCsv(table) {
         const escape = (value) => `"${String(value).replace(/"/g, '""')}"`;
         const csv = tableRows(table).map((row) => row.map(escape).join(',')).join('\r\n');
 
         // The BOM keeps Excel from mangling Lao script.
         const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-
-        link.href = url;
-        link.download = `phakhaolao-table-${new Date().toISOString().slice(0, 10)}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
+        saveBlob(blob, `phakhaolao-table-${new Date().toISOString().slice(0, 10)}.csv`);
     }
 
     function enforceNewTabLinks(root) {
