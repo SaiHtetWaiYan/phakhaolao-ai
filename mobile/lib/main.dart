@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -13,8 +14,44 @@ const String kBaseUrl = 'https://phakhaolao-ai.saihtet.dev';
 
 void main() => runApp(const PhaKhaoLaoApp());
 
-class PhaKhaoLaoApp extends StatelessWidget {
+class PhaKhaoLaoApp extends StatefulWidget {
   const PhaKhaoLaoApp({super.key});
+
+  @override
+  State<PhaKhaoLaoApp> createState() => _PhaKhaoLaoAppState();
+}
+
+class _PhaKhaoLaoAppState extends State<PhaKhaoLaoApp> {
+  static const _themeKey = 'theme_mode';
+
+  ThemeMode _themeMode = ThemeMode.system;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreTheme();
+  }
+
+  Future<void> _restoreTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_themeKey);
+
+    if (stored == null || !mounted) return;
+
+    setState(() {
+      _themeMode = ThemeMode.values.firstWhere(
+        (mode) => mode.name == stored,
+        orElse: () => ThemeMode.system,
+      );
+    });
+  }
+
+  Future<void> _setTheme(ThemeMode mode) async {
+    setState(() => _themeMode = mode);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themeKey, mode.name);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +62,8 @@ class PhaKhaoLaoApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: _theme(Brightness.light, seed),
       darkTheme: _theme(Brightness.dark, seed),
-      home: const ChatScreen(),
+      themeMode: _themeMode,
+      home: ChatScreen(themeMode: _themeMode, onThemeChanged: _setTheme),
     );
   }
 
@@ -54,7 +92,14 @@ class Message {
 }
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  const ChatScreen({
+    super.key,
+    required this.themeMode,
+    required this.onThemeChanged,
+  });
+
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeChanged;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -80,12 +125,31 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _transcribing = false;
   int? _speakingIndex;
 
+  static const _languageKey = 'reply_language';
+
   @override
   void initState() {
     super.initState();
     _player.onComplete.listen((_) {
       if (mounted) setState(() => _speakingIndex = null);
     });
+    _restoreLanguage();
+  }
+
+  Future<void> _restoreLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_languageKey);
+
+    if (stored == null || !mounted) return;
+
+    setState(() => _language = stored);
+  }
+
+  Future<void> _setLanguage(String language) async {
+    setState(() => _language = language);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_languageKey, language);
   }
 
   @override
@@ -265,6 +329,8 @@ class _ChatScreenState extends State<ChatScreen> {
       drawer: _HistoryDrawer(
         api: _api,
         t: _t,
+        themeMode: widget.themeMode,
+        onThemeChanged: widget.onThemeChanged,
         currentId: _conversationId,
         onOpen: _openConversation,
         onNewChat: _newChat,
@@ -282,7 +348,7 @@ class _ChatScreenState extends State<ChatScreen> {
             tooltip: _t('reply_language'),
             icon: const Icon(Icons.translate),
             initialValue: _language,
-            onSelected: (value) => setState(() => _language = value),
+            onSelected: _setLanguage,
             itemBuilder: (context) => [
               PopupMenuItem(value: 'auto', child: Text(_t('language_auto'))),
               const PopupMenuItem(value: 'en', child: Text('English')),
@@ -344,6 +410,8 @@ class _HistoryDrawer extends StatefulWidget {
   const _HistoryDrawer({
     required this.api,
     required this.t,
+    required this.themeMode,
+    required this.onThemeChanged,
     required this.currentId,
     required this.onOpen,
     required this.onNewChat,
@@ -352,6 +420,8 @@ class _HistoryDrawer extends StatefulWidget {
 
   final ApiClient api;
   final Strings t;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeChanged;
   final String? currentId;
   final void Function(String id) onOpen;
   final VoidCallback onNewChat;
@@ -482,8 +552,67 @@ class _HistoryDrawerState extends State<_HistoryDrawer> {
                 },
               ),
             ),
+            const Divider(height: 1),
+            _AppearanceTile(
+              t: t,
+              themeMode: widget.themeMode,
+              onChanged: widget.onThemeChanged,
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Light / dark / follow-system, pinned to the bottom of the drawer.
+class _AppearanceTile extends StatelessWidget {
+  const _AppearanceTile({
+    required this.t,
+    required this.themeMode,
+    required this.onChanged,
+  });
+
+  final Strings t;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onChanged;
+
+  static const _icons = {
+    ThemeMode.system: Icons.brightness_auto_outlined,
+    ThemeMode.light: Icons.light_mode_outlined,
+    ThemeMode.dark: Icons.dark_mode_outlined,
+  };
+
+  String _label(ThemeMode mode) => switch (mode) {
+        ThemeMode.system => t('theme_system'),
+        ThemeMode.light => t('theme_light'),
+        ThemeMode.dark => t('theme_dark'),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<ThemeMode>(
+      tooltip: t('appearance'),
+      initialValue: themeMode,
+      onSelected: onChanged,
+      position: PopupMenuPosition.over,
+      itemBuilder: (context) => ThemeMode.values
+          .map((mode) => PopupMenuItem(
+                value: mode,
+                child: Row(
+                  children: [
+                    Icon(_icons[mode], size: 20),
+                    const SizedBox(width: 12),
+                    Text(_label(mode)),
+                  ],
+                ),
+              ))
+          .toList(),
+      child: ListTile(
+        leading: Icon(_icons[themeMode]),
+        title: Text(t('appearance')),
+        subtitle: Text(_label(themeMode)),
+        trailing: const Icon(Icons.arrow_drop_down),
       ),
     );
   }

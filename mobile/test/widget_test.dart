@@ -92,6 +92,46 @@ void main() {
     expect(find.text('How can I help you today?'), findsNothing);
   });
 
+  // The drawer fetches chats over the network, so it never fully settles here;
+  // pump fixed frames instead of waiting for quiescence.
+  Future<void> openDrawer(WidgetTester tester) async {
+    tester.state<ScaffoldState>(find.byType(Scaffold)).openDrawer();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+  }
+
+  testWidgets('offers system, light and dark appearance', (tester) async {
+    await tester.pumpWidget(const PhaKhaoLaoApp());
+    await openDrawer(tester);
+
+    expect(find.text('Appearance'), findsOneWidget);
+
+    await tester.tap(find.text('Appearance'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Light'), findsOneWidget);
+    expect(find.text('Dark'), findsOneWidget);
+    expect(find.text('System'), findsWidgets);
+  });
+
+  testWidgets('choosing dark switches the app to a dark theme', (tester) async {
+    await tester.pumpWidget(const PhaKhaoLaoApp());
+    await openDrawer(tester);
+
+    await tester.tap(find.text('Appearance'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.text('Dark'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+
+    expect(app.themeMode, ThemeMode.dark);
+  });
+
   testWidgets('the Lao interface reverts when English is chosen',
       (tester) async {
     await tester.pumpWidget(const PhaKhaoLaoApp());
