@@ -106,11 +106,37 @@ class SearchChampions implements Tool
         if ($champion->story) {
             $parts[] = 'Story: '.mb_strimwidth($champion->story, 0, 600, '...');
         }
+        if ($images = $this->images($champion)) {
+            $parts[] = "Images:\n{$images}";
+        }
+
         if ($champion->source_url) {
             $parts[] = "Read more: {$champion->source_url}";
         }
 
         return implode("\n", $parts);
+    }
+
+    /**
+     * Champion photos as markdown, so the assistant can show them directly.
+     */
+    private function images(Champion $champion): ?string
+    {
+        $urls = collect([$champion->featured_image])
+            ->merge(is_array($champion->gallery) ? $champion->gallery : [])
+            ->map(fn ($url) => is_string($url) ? trim($url) : null)
+            ->filter(fn ($url) => is_string($url) && preg_match('/^https?:\/\//i', $url) === 1)
+            ->unique()
+            ->take(4)
+            ->values();
+
+        if ($urls->isEmpty()) {
+            return null;
+        }
+
+        return $urls
+            ->map(fn (string $url, int $i) => "![{$champion->name} image ".($i + 1)."]({$url})")
+            ->implode("\n");
     }
 
     private function joinList(mixed $value): ?string
