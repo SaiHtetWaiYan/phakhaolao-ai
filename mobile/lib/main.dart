@@ -392,6 +392,20 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Future<void> _openLink(String? href) async {
+    final uri = href == null ? null : Uri.tryParse(href);
+
+    if (uri == null) return;
+
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+      if (!opened) _notify(_t('link_failed'));
+    } catch (_) {
+      _notify(_t('link_failed'));
+    }
+  }
+
   void _copy(String text) {
     Clipboard.setData(ClipboardData(text: text));
     _notify(_t('copied'));
@@ -460,6 +474,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               speaking: _speakingIndex == index,
                               onSpeak: () => _speak(index),
                               onCopy: () => _copy(message.text),
+                              onOpenLink: _openLink,
                             );
                     },
                   ),
@@ -823,10 +838,12 @@ class _AssistantMessage extends StatelessWidget {
     required this.speaking,
     required this.onSpeak,
     required this.onCopy,
+    required this.onOpenLink,
   });
 
   final Message message;
   final Strings t;
+  final ValueChanged<String?> onOpenLink;
   final bool speaking;
   final VoidCallback onSpeak;
   final VoidCallback onCopy;
@@ -855,14 +872,13 @@ class _AssistantMessage extends StatelessWidget {
                   styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
                     p: theme.textTheme.bodyLarge?.copyWith(color: colour),
                     listBullet: theme.textTheme.bodyLarge?.copyWith(color: colour),
+                    a: TextStyle(
+                      color: theme.colorScheme.primary,
+                      decoration: TextDecoration.underline,
+                    ),
                   ),
-                  onTapLink: (text, href, title) async {
-                    if (href == null) return;
-                    final uri = Uri.tryParse(href);
-                    if (uri != null && await canLaunchUrl(uri)) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
-                    }
-                  },
+                  imageBuilder: (uri, title, alt) => _RemoteImage(url: uri.toString()),
+                  onTapLink: (text, href, title) => onOpenLink(href),
                 ),
               ),
             ],
@@ -1070,6 +1086,48 @@ class _Composer extends StatelessWidget {
                 ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// An image referenced by a reply, sized to the bubble and degrading to a
+/// placeholder rather than a red error box when it cannot be fetched.
+class _RemoteImage extends StatelessWidget {
+  const _RemoteImage({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, progress) => progress == null
+              ? child
+              : const SizedBox(
+                  height: 140,
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+          errorBuilder: (context, error, stack) => Container(
+            height: 100,
+            alignment: Alignment.center,
+            color: theme.colorScheme.surfaceContainerHighest,
+            child: Icon(
+              Icons.broken_image_outlined,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       ),

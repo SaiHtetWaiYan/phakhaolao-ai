@@ -8,6 +8,7 @@ use App\Http\Middleware\ResolveDeviceToken;
 use App\Http\Requests\Api\SendChatMessageRequest;
 use App\Models\AgentConversation;
 use App\Models\AgentConversationMessage;
+use App\Services\SpeciesImageResponder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,6 +29,8 @@ use Throwable;
  */
 class ChatController extends Controller
 {
+    public function __construct(private SpeciesImageResponder $imageResponder) {}
+
     /** Max recent conversation messages sent to the model (bounds input-token cost). */
     private const HISTORY_MESSAGE_LIMIT = 12;
 
@@ -79,6 +82,25 @@ class ChatController extends Controller
 
         // Store what the user actually wrote, not the identification prompt.
         $this->storeMessage($conversation->id, 'user', $message, $imageUrl);
+
+        // "Show me a photo of X" is answered from stored image URLs rather than
+        // by the model, so the pictures always come from real records.
+        if ($imageUrl === null && $this->imageResponder->isImageRequest($message)) {
+            $reply = $this->imageResponder->respond(
+                $message,
+                $conversation->id,
+                $this->imageResponder->recentContext($conversation->id),
+            );
+
+            $this->storeMessage($conversation->id, 'assistant', $reply);
+            $conversation->touch();
+
+            return response()->json([
+                'conversation_id' => $conversation->id,
+                'reply' => $reply,
+                'image_url' => null,
+            ]);
+        }
 
         try {
             $reply = trim((string) (new ChatAssistant($this->history($conversation->id)))->prompt(
