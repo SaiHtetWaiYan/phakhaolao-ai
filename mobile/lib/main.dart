@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -84,11 +87,23 @@ class _PhaKhaoLaoAppState extends State<PhaKhaoLaoApp> {
 }
 
 class Message {
-  Message({required this.text, required this.fromUser, this.failed = false});
+  Message({
+    required this.text,
+    required this.fromUser,
+    this.failed = false,
+    this.localImagePath,
+    this.imageUrl,
+  });
 
   final String text;
   final bool fromUser;
   final bool failed;
+
+  /// Set while the photo is still only on the device.
+  final String? localImagePath;
+
+  /// Set once the server has stored it.
+  final String? imageUrl;
 }
 
 class ChatScreen extends StatefulWidget {
@@ -119,6 +134,9 @@ class _ChatScreenState extends State<ChatScreen> {
   /// result is indistinguishable from dismissing the menu, so "Auto" could
   /// never be chosen.
   String _language = 'auto';
+
+  final _picker = ImagePicker();
+  String? _pendingImagePath;
 
   bool _sending = false;
   bool _recording = false;
@@ -174,11 +192,19 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _send() async {
     final text = _controller.text.trim();
-    if (text.isEmpty || _sending) return;
+    final imagePath = _pendingImagePath;
+
+    // A photo alone is a valid message: it asks what species this is.
+    if ((text.isEmpty && imagePath == null) || _sending) return;
 
     setState(() {
-      _messages.add(Message(text: text, fromUser: true));
+      _messages.add(Message(
+        text: text,
+        fromUser: true,
+        localImagePath: imagePath,
+      ));
       _sending = true;
+      _pendingImagePath = null;
       _controller.clear();
     });
     _scrollToBottom();
@@ -188,6 +214,7 @@ class _ChatScreenState extends State<ChatScreen> {
         text,
         conversationId: _conversationId,
         responseLanguage: _apiLanguage,
+        imagePath: imagePath,
       );
 
       setState(() {
@@ -244,9 +271,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
       setState(() {
         _conversationId = id;
-        _messages.addAll(
-          history.map((m) => Message(text: m.text, fromUser: m.fromUser)),
-        );
+        _messages.addAll(history.map((m) => Message(
+              text: m.text,
+              fromUser: m.fromUser,
+              imageUrl: m.imageUrl,
+            )));
       });
       _scrollToBottom();
     } catch (e) {
@@ -318,6 +347,51 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final file = await _picker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        imageQuality: 85,
+      );
+
+      if (file == null) return;
+
+      setState(() => _pendingImagePath = file.path);
+    } catch (e) {
+      _notify(_t('image_failed'));
+    }
+  }
+
+  void _attach() {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: Text(_t('take_photo')),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(_t('choose_photo')),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _copy(String text) {
     Clipboard.setData(ClipboardData(text: text));
     _notify(_t('copied'));
@@ -379,7 +453,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       final message = _messages[index];
 
                       return message.fromUser
-                          ? _UserMessage(text: message.text)
+                          ? _UserMessage(message: message, baseUrl: kBaseUrl)
                           : _AssistantMessage(
                               message: message,
                               t: _t,
@@ -392,6 +466,10 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           _Composer(
             t: _t,
+            baseUrl: kBaseUrl,
+            pendingImagePath: _pendingImagePath,
+            onAttach: _attach,
+            onRemoveImage: () => setState(() => _pendingImagePath = null),
             controller: _controller,
             sending: _sending,
             recording: _recording,
@@ -677,13 +755,22 @@ class _EmptyState extends StatelessWidget {
 
 /// User turns sit in a bubble on the right, as in the ChatGPT app.
 class _UserMessage extends StatelessWidget {
-  const _UserMessage({required this.text});
+  const _UserMessage({required this.message, required this.baseUrl});
 
-  final String text;
+  final Message message;
+  final String baseUrl;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final hasText = message.text.isNotEmpty;
+
+    // Local file while the photo is uploading, server copy once stored.
+    final image = message.localImagePath != null
+        ? Image.file(File(message.localImagePath!), fit: BoxFit.cover)
+        : message.imageUrl != null
+            ? Image.network('$baseUrl${message.imageUrl}', fit: BoxFit.cover)
+            : null;
 
     return Align(
       alignment: Alignment.centerRight,
@@ -692,12 +779,37 @@ class _UserMessage extends StatelessWidget {
           maxWidth: MediaQuery.of(context).size.width * 0.8,
         ),
         margin: const EdgeInsets.symmetric(vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: EdgeInsets.symmetric(
+          horizontal: image == null ? 16 : 6,
+          vertical: image == null ? 10 : 6,
+        ),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Text(text, style: theme.textTheme.bodyLarge),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (image != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  child: image,
+                ),
+              ),
+            if (hasText)
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  image == null ? 0 : 10,
+                  image == null ? 0 : 8,
+                  image == null ? 0 : 10,
+                  image == null ? 0 : 2,
+                ),
+                child: Text(message.text, style: theme.textTheme.bodyLarge),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -836,6 +948,10 @@ class _TypingIndicator extends StatelessWidget {
 class _Composer extends StatelessWidget {
   const _Composer({
     required this.t,
+    required this.baseUrl,
+    required this.pendingImagePath,
+    required this.onAttach,
+    required this.onRemoveImage,
     required this.controller,
     required this.sending,
     required this.recording,
@@ -845,6 +961,10 @@ class _Composer extends StatelessWidget {
   });
 
   final Strings t;
+  final String baseUrl;
+  final String? pendingImagePath;
+  final VoidCallback onAttach;
+  final VoidCallback onRemoveImage;
   final TextEditingController controller;
   final bool sending;
   final bool recording;
@@ -866,10 +986,50 @@ class _Composer extends StatelessWidget {
             color: theme.colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(26),
           ),
-          padding: const EdgeInsets.fromLTRB(18, 4, 6, 4),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (pendingImagePath != null)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            File(pendingImagePath!),
+                            width: 72,
+                            height: 72,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: -10,
+                          right: -10,
+                          child: IconButton(
+                            tooltip: t('remove'),
+                            iconSize: 18,
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.cancel),
+                            onPressed: onRemoveImage,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              IconButton(
+                tooltip: t('attach'),
+                onPressed: busy ? null : onAttach,
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+              ),
               Expanded(
                 child: TextField(
                   controller: controller,
@@ -906,6 +1066,8 @@ class _Composer extends StatelessWidget {
               IconButton.filled(
                 onPressed: busy ? null : onSend,
                 icon: const Icon(Icons.arrow_upward, size: 20),
+              ),
+                ],
               ),
             ],
           ),

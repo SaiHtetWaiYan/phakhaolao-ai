@@ -3,6 +3,8 @@
 use App\Models\AgentConversation;
 use App\Models\AgentConversationMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
@@ -134,4 +136,32 @@ it('blocks sending once the daily limit is reached', function () {
     $this->postJson('/api/v1/chat', ['message' => 'hello'], withDevice())
         ->assertStatus(429)
         ->assertJsonPath('limit', 1);
+});
+
+// A photo on its own is a valid request: it asks the assistant to identify the
+// species. Checked against the rules directly so the test does not call the model.
+it('accepts a photo with no caption', function () {
+    $rules = (new \App\Http\Requests\Api\SendChatMessageRequest)->rules();
+
+    $validator = validator(
+        ['image' => UploadedFile::fake()->image('plant.jpg')],
+        $rules
+    );
+
+    expect($validator->fails())->toBeFalse();
+});
+
+it('rejects a request with neither a message nor a photo', function () {
+    $this->postJson('/api/v1/chat', [], withDevice())
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('message');
+});
+
+it('rejects a file that is not an image', function () {
+    Storage::fake('public');
+
+    $this->postJson('/api/v1/chat', [
+        'message' => 'what is this?',
+        'image' => UploadedFile::fake()->create('notes.pdf', 100, 'application/pdf'),
+    ], withDevice())->assertUnprocessable()->assertJsonValidationErrors('image');
 });

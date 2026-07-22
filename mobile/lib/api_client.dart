@@ -50,23 +50,46 @@ class ApiClient {
         'Accept': 'application/json',
       };
 
-  /// Sends a message and returns the assistant's full reply.
+  /// Sends a message, optionally with a photo to identify, and returns the
+  /// assistant's full reply.
   Future<ChatReply> send(
     String message, {
     String? conversationId,
     String? responseLanguage,
+    String? imagePath,
   }) async {
-    final response = await http
-        .post(
-          Uri.parse('$baseUrl/api/v1/chat'),
-          headers: await _headers(),
-          body: jsonEncode({
-            'message': message,
-            'conversation_id': ?conversationId,
-            'response_language': ?responseLanguage,
-          }),
-        )
-        .timeout(const Duration(seconds: 120));
+    final http.Response response;
+
+    if (imagePath == null) {
+      response = await http
+          .post(
+            Uri.parse('$baseUrl/api/v1/chat'),
+            headers: await _headers(),
+            body: jsonEncode({
+              'message': message,
+              'conversation_id': ?conversationId,
+              'response_language': ?responseLanguage,
+            }),
+          )
+          .timeout(const Duration(seconds: 120));
+    } else {
+      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/api/v1/chat'))
+        ..headers.addAll({
+          'X-Device-Token': await _token(),
+          'Accept': 'application/json',
+        })
+        ..fields['message'] = message
+        ..files.add(await http.MultipartFile.fromPath('image', imagePath));
+
+      if (conversationId != null) request.fields['conversation_id'] = conversationId;
+      if (responseLanguage != null) {
+        request.fields['response_language'] = responseLanguage;
+      }
+
+      response = await http.Response.fromStream(
+        await request.send().timeout(const Duration(seconds: 150)),
+      );
+    }
 
     final body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
 
@@ -81,6 +104,7 @@ class ApiClient {
     return ChatReply(
       conversationId: body['conversation_id'] as String,
       reply: body['reply'] as String,
+      imageUrl: body['image_url'] as String?,
     );
   }
 
@@ -187,10 +211,15 @@ class ApiClient {
 }
 
 class ChatReply {
-  const ChatReply({required this.conversationId, required this.reply});
+  const ChatReply({
+    required this.conversationId,
+    required this.reply,
+    this.imageUrl,
+  });
 
   final String conversationId;
   final String reply;
+  final String? imageUrl;
 }
 
 class Conversation {
@@ -208,14 +237,16 @@ class Conversation {
 }
 
 class ChatMessage {
-  const ChatMessage({required this.text, required this.fromUser});
+  const ChatMessage({required this.text, required this.fromUser, this.imageUrl});
 
   final String text;
   final bool fromUser;
+  final String? imageUrl;
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
         text: json['content'] as String? ?? '',
         fromUser: json['role'] == 'user',
+        imageUrl: json['image_url'] as String?,
       );
 }
 
