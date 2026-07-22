@@ -1030,21 +1030,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 row++;
             }
 
-            const th = headings
-                .map((cell, index) => `<th class="px-3 py-2 text-left font-semibold text-zinc-700 dark:text-zinc-200 border-b border-zinc-300 dark:border-zinc-600${index ? ' border-l border-zinc-200 dark:border-zinc-700' : ''}">${cell}</th>`)
-                .join('');
+            // Styled from the stylesheet, not utility classes: these are built
+            // at runtime, so anything the CSS build never saw would not exist.
+            const th = headings.map((cell) => `<th>${cell}</th>`).join('');
 
             const tr = body
-                .map((cols, rowIndex) => `<tr class="${rowIndex % 2 ? 'bg-zinc-50 dark:bg-zinc-800/40' : ''}">` + headings
-                    .map((_, index) => `<td class="px-3 py-2 align-top border-t border-zinc-200 dark:border-zinc-700${index ? ' border-l border-zinc-200 dark:border-zinc-700' : ''}${index === 0 ? ' font-medium text-zinc-800 dark:text-zinc-100' : ''}">${cols[index] ?? ''}</td>`)
+                .map((cols) => '<tr>' + headings
+                    .map((_, index) => `<td>${cols[index] ?? ''}</td>`)
                     .join('') + '</tr>')
                 .join('');
 
             out.push(
-                '<div class="pk-table-wrap my-3 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">'
-                + '<div class="overflow-x-auto">'
-                + '<table class="pk-table min-w-full border-collapse text-sm leading-snug">'
-                + `<thead class="bg-zinc-100 dark:bg-zinc-700/60"><tr>${th}</tr></thead><tbody>${tr}</tbody>`
+                '<div class="pk-table-wrap">'
+                + '<div class="pk-table-scroll">'
+                + '<table class="pk-table">'
+                + `<thead><tr>${th}</tr></thead><tbody>${tr}</tbody>`
                 + '</table></div></div>'
             );
 
@@ -1113,24 +1113,24 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!table) return;
 
             const bar = document.createElement('div');
-            bar.className = 'flex items-center justify-end gap-1 px-2 py-1 bg-zinc-100 dark:bg-zinc-700/60 border-b border-zinc-200 dark:border-zinc-700';
+            bar.className = 'pk-table-bar';
 
             const button = (label, title) => {
                 const b = document.createElement('button');
                 b.type = 'button';
                 b.textContent = label;
                 b.title = title;
-                b.className = 'text-xs px-2 py-1 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-600 transition';
+                b.className = 'pk-table-btn';
                 return b;
             };
 
-            const copyBtn = button('Copy', 'Copy the table (paste into Excel or Sheets)');
-            const csvBtn = button('CSV', 'Download the table as a CSV file');
+            const copyBtn = button('⧉ Copy', 'Copy the table (paste into Excel or Sheets)');
+            const csvBtn = button('↓ Download CSV', 'Download the table as a CSV file');
 
             copyBtn.addEventListener('click', async () => {
                 const ok = await copyTable(table);
-                copyBtn.textContent = ok ? 'Copied' : 'Failed';
-                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+                copyBtn.textContent = ok ? '✓ Copied' : 'Failed';
+                setTimeout(() => { copyBtn.textContent = '⧉ Copy'; }, 1500);
             });
 
             csvBtn.addEventListener('click', () => downloadTableCsv(table));
@@ -1329,12 +1329,78 @@ document.addEventListener('DOMContentLoaded', function () {
 /* Break long URLs/words so a message never forces horizontal scroll. */
 .prose, .prose a, .whitespace-pre-wrap { overflow-wrap: anywhere; word-break: break-word; }
 .prose pre { overflow-x: auto; max-width: 100%; }
-/* Tables opt out of that: breaking anywhere shreds a narrow column into
-   single letters, so cells keep a workable width and the table scrolls. */
-.pk-table th, .pk-table td { overflow-wrap: break-word; word-break: normal; min-width: 8rem; }
+/* Tables, styled here rather than with utility classes: the markup is built at
+   runtime, so any class the CSS build never saw would not exist — which is how
+   dark rows ended up white. */
+.pk-table-wrap {
+    max-width: 100%;
+    margin: 0.75rem 0;
+    border: 1px solid #e4e4e7;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: #ffffff;
+}
+.dark .pk-table-wrap { border-color: #3f3f46; background: #18181b; }
+
+.pk-table-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: #fafafa;
+    border-bottom: 1px solid #e4e4e7;
+}
+.dark .pk-table-bar { background: #27272a; border-bottom-color: #3f3f46; }
+
+.pk-table-btn {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    color: #52525b;
+    background: transparent;
+    transition: background-color .15s, color .15s;
+    white-space: nowrap;
+}
+.pk-table-btn:hover { background: #e4e4e7; color: #18181b; }
+.dark .pk-table-btn { color: #a1a1aa; }
+.dark .pk-table-btn:hover { background: #3f3f46; color: #fafafa; }
+
+.pk-table-scroll { overflow-x: auto; }
+
+.pk-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    line-height: 1.35;
+}
+.pk-table th, .pk-table td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+    /* Breaking anywhere shreds a narrow column into single letters. */
+    overflow-wrap: break-word;
+    word-break: normal;
+    min-width: 8rem;
+}
 .pk-table th:first-child, .pk-table td:first-child { min-width: 10rem; }
+.pk-table th {
+    font-weight: 600;
+    color: #3f3f46;
+    background: #f4f4f5;
+    border-bottom: 1px solid #d4d4d8;
+}
+.dark .pk-table th { color: #e4e4e7; background: #27272a; border-bottom-color: #52525b; }
+.pk-table td { color: #27272a; border-top: 1px solid #e4e4e7; }
+.dark .pk-table td { color: #d4d4d8; border-top-color: #3f3f46; }
+.pk-table td:first-child { font-weight: 500; color: #18181b; }
+.dark .pk-table td:first-child { color: #fafafa; }
+.pk-table th + th, .pk-table td + td { border-left: 1px solid #e4e4e7; }
+.dark .pk-table th + th, .dark .pk-table td + td { border-left-color: #3f3f46; }
+.pk-table tbody tr:nth-child(even) { background: #fafafa; }
+.dark .pk-table tbody tr:nth-child(even) { background: #212124; }
 .pk-table a { overflow-wrap: anywhere; }
-.pk-table-wrap { max-width: 100%; }
 /* Answer-language switch active state (build-independent). */
 .js-lang-opt { color: #71717a; }
 .js-lang-opt.is-active { background: #ffffff; color: #18181b; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
