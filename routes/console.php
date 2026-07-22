@@ -3,15 +3,55 @@
 use App\Models\AgentConversation;
 use App\Models\AgentConversationMessage;
 use App\Models\Species;
+use App\Support\SourceDatabase;
+use Illuminate\Console\Scheduling\Event;
+use Illuminate\Console\Scheduling\PendingEventAttributes;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
 
 use function Laravel\Ai\agent;
 
 Schedule::command('exports:cleanup')->hourly();
 Schedule::command('tts:clear-cache')->weekly();
+
+/**
+ * Nightly source syncs, staggered so they never overlap on a small server.
+ * Each one is toggled by config/sync.php, so enabling or moving a sync is an
+ * env change rather than a deploy.
+ */
+$syncTimezone = (string) config('sync.timezone');
+$syncLog = storage_path('logs/schedule.log');
+
+$scheduleSync = function (string $command, string $key) use ($syncTimezone, $syncLog): PendingEventAttributes|Event {
+    return Schedule::command($command)
+        ->dailyAt((string) config("sync.times.{$key}"))
+        ->timezone($syncTimezone)
+        ->withoutOverlapping()
+        ->runInBackground()
+        ->appendOutputTo($syncLog)
+        ->onFailure(fn () => Log::error("Scheduled sync failed: {$command}"));
+};
+
+// Species reads the separate "pkl" database. It stays dormant until that
+// database is both enabled and actually reachable from this server.
+$scheduleSync('species:import', 'species')
+    ->when(fn (): bool => (bool) config('sync.species') && SourceDatabase::reachable());
+
+$scheduleSync('champions:import', 'champions')
+    ->when(fn (): bool => (bool) config('sync.champions'));
+
+$scheduleSync('stories:import', 'stories')
+    ->when(fn (): bool => (bool) config('sync.stories'));
+
+$scheduleSync('library:import', 'library')
+    ->when(fn (): bool => (bool) config('sync.library'));
+
+// Fills embeddings for newly imported species; a free no-op when there are none.
+$scheduleSync('species:embed', 'embed')
+    ->when(fn (): bool => (bool) config('sync.embed'));
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
