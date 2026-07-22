@@ -1329,6 +1329,12 @@ document.addEventListener('DOMContentLoaded', function () {
 /* Break long URLs/words so a message never forces horizontal scroll. */
 .prose, .prose a, .whitespace-pre-wrap { overflow-wrap: anywhere; word-break: break-word; }
 .prose pre { overflow-x: auto; max-width: 100%; }
+/* Tables opt out of that: breaking anywhere shreds a narrow column into
+   single letters, so cells keep a workable width and the table scrolls. */
+.pk-table th, .pk-table td { overflow-wrap: break-word; word-break: normal; min-width: 8rem; }
+.pk-table th:first-child, .pk-table td:first-child { min-width: 10rem; }
+.pk-table a { overflow-wrap: anywhere; }
+.pk-table-wrap { max-width: 100%; }
 /* Answer-language switch active state (build-independent). */
 .js-lang-opt { color: #71717a; }
 .js-lang-opt.is-active { background: #ffffff; color: #18181b; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
