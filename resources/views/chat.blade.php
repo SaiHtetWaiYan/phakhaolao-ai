@@ -524,6 +524,7 @@ document.addEventListener('DOMContentLoaded', function () {
     messagesArea.scrollTop = messagesArea.scrollHeight;
     enforceNewTabLinks(messagesContainer);
     handleBrokenImages(messagesContainer);
+    enhanceTables(messagesContainer);
 
     function updateSendButton() {
         const sendIcon = sendBtn.querySelector('.js-send-icon');
@@ -942,6 +943,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             renderAssistantContent(bubble, fullText);
                             enforceNewTabLinks(messagesContainer);
                             handleBrokenImages(messagesContainer);
+                            enhanceTables(messagesContainer);
                             scrollToBottom();
                         }
                         if (parsed.conversation_id && !currentConversationId) {
@@ -1029,20 +1031,21 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const th = headings
-                .map((cell) => `<th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-left font-semibold bg-zinc-100 dark:bg-zinc-700 whitespace-nowrap">${cell}</th>`)
+                .map((cell, index) => `<th class="px-3 py-2 text-left font-semibold text-zinc-700 dark:text-zinc-200 border-b border-zinc-300 dark:border-zinc-600${index ? ' border-l border-zinc-200 dark:border-zinc-700' : ''}">${cell}</th>`)
                 .join('');
 
             const tr = body
-                .map((cols) => '<tr>' + headings
-                    .map((_, index) => `<td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 align-top">${cols[index] ?? ''}</td>`)
+                .map((cols, rowIndex) => `<tr class="${rowIndex % 2 ? 'bg-zinc-50 dark:bg-zinc-800/40' : ''}">` + headings
+                    .map((_, index) => `<td class="px-3 py-2 align-top border-t border-zinc-200 dark:border-zinc-700${index ? ' border-l border-zinc-200 dark:border-zinc-700' : ''}${index === 0 ? ' font-medium text-zinc-800 dark:text-zinc-100' : ''}">${cols[index] ?? ''}</td>`)
                     .join('') + '</tr>')
                 .join('');
 
             out.push(
-                '<div class="my-3 overflow-x-auto">'
-                + '<table class="min-w-full border-collapse text-sm">'
-                + `<thead><tr>${th}</tr></thead><tbody>${tr}</tbody>`
-                + '</table></div>'
+                '<div class="pk-table-wrap my-3 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">'
+                + '<div class="overflow-x-auto">'
+                + '<table class="pk-table min-w-full border-collapse text-sm leading-snug">'
+                + `<thead class="bg-zinc-100 dark:bg-zinc-700/60"><tr>${th}</tr></thead><tbody>${tr}</tbody>`
+                + '</table></div></div>'
             );
 
             i = row - 1;
@@ -1096,6 +1099,102 @@ document.addEventListener('DOMContentLoaded', function () {
         return html;
     }
 
+    /**
+     * Give every rendered table a Copy and CSV button.
+     *
+     * Added to the DOM afterwards rather than in the markup, since the
+     * sanitizer strips buttons.
+     */
+    function enhanceTables(root) {
+        (root || document).querySelectorAll('.pk-table-wrap:not([data-enhanced])').forEach((wrap) => {
+            wrap.setAttribute('data-enhanced', '1');
+
+            const table = wrap.querySelector('table');
+            if (!table) return;
+
+            const bar = document.createElement('div');
+            bar.className = 'flex items-center justify-end gap-1 px-2 py-1 bg-zinc-100 dark:bg-zinc-700/60 border-b border-zinc-200 dark:border-zinc-700';
+
+            const button = (label, title) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.textContent = label;
+                b.title = title;
+                b.className = 'text-xs px-2 py-1 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-600 transition';
+                return b;
+            };
+
+            const copyBtn = button('Copy', 'Copy the table (paste into Excel or Sheets)');
+            const csvBtn = button('CSV', 'Download the table as a CSV file');
+
+            copyBtn.addEventListener('click', async () => {
+                const ok = await copyTable(table);
+                copyBtn.textContent = ok ? 'Copied' : 'Failed';
+                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+            });
+
+            csvBtn.addEventListener('click', () => downloadTableCsv(table));
+
+            bar.appendChild(copyBtn);
+            bar.appendChild(csvBtn);
+            wrap.insertBefore(bar, wrap.firstChild);
+        });
+    }
+
+    /**
+     * @returns {Array<Array<string>>} rows of trimmed cell text, header first
+     */
+    function tableRows(table) {
+        return [...table.querySelectorAll('tr')].map((tr) =>
+            [...tr.querySelectorAll('th,td')].map((cell) => cell.textContent.replace(/\s+/g, ' ').trim())
+        );
+    }
+
+    /**
+     * Copies as tab-separated text plus the table's own HTML, so a paste lands
+     * as real cells in a spreadsheet and as a table in a document.
+     */
+    async function copyTable(table) {
+        const tsv = tableRows(table).map((row) => row.join('\t')).join('\n');
+
+        try {
+            if (navigator.clipboard && window.ClipboardItem) {
+                await navigator.clipboard.write([new ClipboardItem({
+                    'text/plain': new Blob([tsv], { type: 'text/plain' }),
+                    'text/html': new Blob([table.outerHTML], { type: 'text/html' }),
+                })]);
+                return true;
+            }
+
+            await navigator.clipboard.writeText(tsv);
+            return true;
+        } catch (error) {
+            try {
+                await navigator.clipboard.writeText(tsv);
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+    }
+
+    function downloadTableCsv(table) {
+        const escape = (value) => `"${String(value).replace(/"/g, '""')}"`;
+        const csv = tableRows(table).map((row) => row.map(escape).join(',')).join('\r\n');
+
+        // The BOM keeps Excel from mangling Lao script.
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = `phakhaolao-table-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    }
+
     function enforceNewTabLinks(root) {
         (root || document).querySelectorAll('.prose a[href]').forEach((anchor) => {
             anchor.setAttribute('target', '_blank');
@@ -1126,6 +1225,7 @@ document.addEventListener('DOMContentLoaded', function () {
     renderExistingAssistantMessages();
     enforceNewTabLinks(messagesContainer);
     handleBrokenImages(messagesContainer);
+    enhanceTables(messagesContainer);
 
     form.addEventListener('submit', (e) => {
         e.preventDefault();
