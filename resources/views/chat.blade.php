@@ -1126,7 +1126,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const copyBtn = button('⧉ Copy', 'Copy the table (paste into Excel or Sheets)');
             const excelBtn = button('↓ Excel', 'Download as a formatted Excel file');
-            const csvBtn = button('↓ CSV', 'Download as a plain CSV file');
+            const imageBtn = button('↓ Image', 'Download the table as a PNG image');
 
             copyBtn.addEventListener('click', async () => {
                 const ok = await copyTable(table);
@@ -1147,11 +1147,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!ok) setTimeout(() => { excelBtn.textContent = original; }, 1500);
             });
 
-            csvBtn.addEventListener('click', () => downloadTableCsv(table));
+            imageBtn.addEventListener('click', () => downloadTablePng(table));
 
             bar.appendChild(copyBtn);
             bar.appendChild(excelBtn);
-            bar.appendChild(csvBtn);
+            bar.appendChild(imageBtn);
             wrap.insertBefore(bar, wrap.firstChild);
         });
     }
@@ -1231,13 +1231,114 @@ document.addEventListener('DOMContentLoaded', function () {
         URL.revokeObjectURL(url);
     }
 
-    function downloadTableCsv(table) {
-        const escape = (value) => `"${String(value).replace(/"/g, '""')}"`;
-        const csv = tableRows(table).map((row) => row.map(escape).join(',')).join('\r\n');
+    /**
+     * Draws the table onto a canvas and saves it as a PNG.
+     *
+     * Painted by hand rather than with a screenshot library so the image is
+     * always light-on-white and legible, whatever theme the page is in, and so
+     * nothing extra has to be loaded.
+     */
+    function downloadTablePng(table) {
+        const rows = tableRows(table);
+        if (!rows.length) return;
 
-        // The BOM keeps Excel from mangling Lao script.
-        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-        saveBlob(blob, `phakhaolao-table-${new Date().toISOString().slice(0, 10)}.csv`);
+        const SCALE = 2;                 // render at 2x for a sharp image
+        const PAD = 12;                  // padding inside a cell
+        const LINE = 20;                 // line height
+        const MAX_COL = 260;             // widest a column may get
+        const MIN_COL = 90;
+        const FONT = '13px system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Lao", sans-serif';
+        const BOLD = 'bold ' + FONT;
+
+        const measurer = document.createElement('canvas').getContext('2d');
+        const columnCount = Math.max(...rows.map((row) => row.length));
+
+        // Column widths from the widest single word, so wrapping stays sane.
+        const widths = [];
+        for (let c = 0; c < columnCount; c++) {
+            let widest = MIN_COL;
+            rows.forEach((row, r) => {
+                measurer.font = r === 0 ? BOLD : FONT;
+                const text = row[c] ?? '';
+                widest = Math.max(widest, Math.min(measurer.measureText(text).width + PAD * 2, MAX_COL));
+            });
+            widths.push(Math.ceil(widest));
+        }
+
+        const wrap = (text, font, width) => {
+            measurer.font = font;
+            const lines = [];
+            let line = '';
+
+            String(text).split(/\s+/).forEach((word) => {
+                const candidate = line ? line + ' ' + word : word;
+                if (measurer.measureText(candidate).width <= width || !line) {
+                    line = candidate;
+                } else {
+                    lines.push(line);
+                    line = word;
+                }
+            });
+
+            if (line) lines.push(line);
+            return lines.length ? lines : [''];
+        };
+
+        // Wrap every cell first, so row heights are known before drawing.
+        const wrapped = rows.map((row, r) => {
+            const font = r === 0 ? BOLD : FONT;
+            return Array.from({ length: columnCount }, (_, c) =>
+                wrap(row[c] ?? '', font, widths[c] - PAD * 2));
+        });
+        const heights = wrapped.map((cells) =>
+            Math.max(...cells.map((lines) => lines.length)) * LINE + PAD * 2);
+
+        const totalWidth = widths.reduce((sum, w) => sum + w, 0);
+        const totalHeight = heights.reduce((sum, h) => sum + h, 0);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = totalWidth * SCALE;
+        canvas.height = totalHeight * SCALE;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(SCALE, SCALE);
+        ctx.textBaseline = 'top';
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+        let y = 0;
+        wrapped.forEach((cells, r) => {
+            const height = heights[r];
+
+            if (r === 0) {
+                ctx.fillStyle = '#f4f4f5';
+                ctx.fillRect(0, y, totalWidth, height);
+            } else if (r % 2 === 0) {
+                ctx.fillStyle = '#fafafa';
+                ctx.fillRect(0, y, totalWidth, height);
+            }
+
+            let x = 0;
+            cells.forEach((lines, c) => {
+                ctx.strokeStyle = '#e4e4e7';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, widths[c], height);
+
+                ctx.fillStyle = r === 0 ? '#27272a' : '#3f3f46';
+                ctx.font = (r === 0 || c === 0) ? BOLD : FONT;
+                lines.forEach((line, index) => {
+                    ctx.fillText(line, x + PAD, y + PAD + index * LINE);
+                });
+
+                x += widths[c];
+            });
+
+            y += height;
+        });
+
+        canvas.toBlob((blob) => {
+            if (blob) saveBlob(blob, `phakhaolao-table-${new Date().toISOString().slice(0, 10)}.png`);
+        }, 'image/png');
     }
 
     function enforceNewTabLinks(root) {
