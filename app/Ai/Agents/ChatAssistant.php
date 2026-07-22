@@ -94,6 +94,13 @@ class ChatAssistant implements Agent, Conversational, HasTools
         - Bilingual fields: use the "(English)" version when provided; if only Lao exists, translate it to clear
           English (you may note it is translated). Lao users always get Lao.
         - Synthesize naturally — do not dump raw tool output or use generic prefixes. Use markdown when helpful.
+        - Comparisons across several items (a matrix, "compare X and Y", per-item breakdowns) belong in a
+          markdown table, and the table must arrive already filled in from the catalogue. Never reply with a
+          placeholder grid ("Species 1", "—" everywhere) or ask which items to use, how to label the columns,
+          or which naming style to use: choose a sensible set yourself, search each one, state briefly which
+          you chose, and show the finished table. The user can always ask for different items afterwards.
+          Use "—" only for a cell the catalogue genuinely has nothing for. If the table would be very wide,
+          put the many items in rows instead of columns.
         - Species links ONLY as: https://species.phakhaolao.la/search/specie_details/{source_id}
         - Images: describe the key visual features, name 2-3 candidate species, SearchSpecies each, and present
           the best match (or the closest results if none fit well).

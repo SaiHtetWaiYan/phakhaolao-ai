@@ -991,6 +991,66 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    /**
+     * Turn markdown pipe tables into real tables.
+     *
+     * Runs before newlines become <br>, while rows are still on their own
+     * lines. A wide matrix scrolls inside its own container rather than
+     * stretching the message.
+     */
+    function formatTables(html) {
+        const isSeparator = (line) => /^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$/.test(line.trim());
+        const cells = (line) => line.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim());
+
+        const lines = html.split('\n');
+        const out = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const header = lines[i];
+            const separator = lines[i + 1];
+
+            const looksLikeTable = header.trim().startsWith('|')
+                && typeof separator === 'string'
+                && isSeparator(separator)
+                && cells(header).length > 1;
+
+            if (!looksLikeTable) {
+                out.push(header);
+                continue;
+            }
+
+            const headings = cells(header);
+            const body = [];
+            let row = i + 2;
+
+            while (row < lines.length && lines[row].trim().startsWith('|')) {
+                body.push(cells(lines[row]));
+                row++;
+            }
+
+            const th = headings
+                .map((cell) => `<th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-left font-semibold bg-zinc-100 dark:bg-zinc-700 whitespace-nowrap">${cell}</th>`)
+                .join('');
+
+            const tr = body
+                .map((cols) => '<tr>' + headings
+                    .map((_, index) => `<td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 align-top">${cols[index] ?? ''}</td>`)
+                    .join('') + '</tr>')
+                .join('');
+
+            out.push(
+                '<div class="my-3 overflow-x-auto">'
+                + '<table class="min-w-full border-collapse text-sm">'
+                + `<thead><tr>${th}</tr></thead><tbody>${tr}</tbody>`
+                + '</table></div>'
+            );
+
+            i = row - 1;
+        }
+
+        return out.join('\n');
+    }
+
     function formatText(text) {
         text = text.replace(/https:\/\/species\.phakhaolao\.la\/species\/(\d+)/gi, 'https://species.phakhaolao.la/search/specie_details/$1');
         let html = escapeHtml(text);
@@ -1010,6 +1070,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
         html = html.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded-md bg-zinc-200 dark:bg-zinc-700 text-sm font-mono">$1</code>');
+        html = formatTables(html);
         html = html.replace(/\n/g, '<br>');
         // Group consecutive images into a compact thumbnail grid (single image stays medium).
         html = html.replace(/(?:<img[^>]*class="pk-chat-img[^>]*>(?:\s*<br>\s*)?)+/g, (run) => {
