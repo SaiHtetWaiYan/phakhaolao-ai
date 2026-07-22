@@ -118,13 +118,7 @@ class SpeciesImageResponder
             }
         }
 
-        $query = trim((string) preg_replace(
-            '/\b(show|display|give|find|some|any|me|the|a|an|pic|pics|photo|photos|photograph|photographs'
-            .'|image|images|picture|pictures|of|for|about|please|can|could|you|how|many|species)\b/i',
-            ' ',
-            $combined
-        ));
-        $query = trim((string) preg_replace('/\s+/', ' ', $query));
+        $query = $this->searchTerm($combined);
 
         if ($query === '') {
             return null;
@@ -140,6 +134,27 @@ class SpeciesImageResponder
             })
             ->orderBy('source_id')
             ->first();
+    }
+
+    /**
+     * Reduce a question to the name being asked about.
+     *
+     * Punctuation is dropped as well as filler words: leaving it behind turns
+     * "monkey ,  ?" into a LIKE that matches nothing.
+     */
+    private function searchTerm(string $message): string
+    {
+        $term = (string) preg_replace(
+            '/\b(show|display|give|find|some|any|me|the|a|an|pic|pics|photo|photos|photograph|photographs'
+            .'|image|images|picture|pictures|of|for|about|please|can|could|you|how|many|species|there|are|is)\b/i',
+            ' ',
+            $message
+        );
+
+        // Keep letters, digits, spaces and hyphens; Lao script must survive.
+        $term = (string) preg_replace('/[^\p{L}\p{N}\s-]+/u', ' ', $term);
+
+        return trim((string) preg_replace('/\s+/', ' ', $term));
     }
 
     private function findSpeciesInHistory(?string $conversationId): ?Species
@@ -177,12 +192,7 @@ class SpeciesImageResponder
 
     private function findChampion(string $combined): ?Champion
     {
-        $name = trim((string) preg_replace(
-            '/\b(show|display|give|find|photo|photos|image|images|picture|pictures|of|for|about|please|can you|could you|champion|champions)\b/i',
-            ' ',
-            $combined
-        ));
-        $name = trim((string) preg_replace('/\s+/', ' ', $name));
+        $name = $this->searchTerm(preg_replace('/\bchampions?\b/i', ' ', $combined) ?? $combined);
 
         if (mb_strlen($name) < 3) {
             return null;

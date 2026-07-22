@@ -38,3 +38,17 @@ it('leaves a long, self-contained question alone', function () {
     expect($responder->withContext($message, 'unrelated earlier chatter'))
         ->toBe($message);
 });
+
+// Punctuation left in the extracted term produced a LIKE that matched nothing,
+// so a perfectly ordinary question found no photos.
+it('reduces a question to the name being asked about', function (string $message, string $expected) {
+    $method = new ReflectionMethod(SpeciesImageResponder::class, 'searchTerm');
+    $method->setAccessible(true);
+
+    expect($method->invoke(app(SpeciesImageResponder::class), $message))->toBe($expected);
+})->with([
+    'trailing punctuation' => ['How many monkey species , can you show me some pics ?', 'monkey'],
+    'simple request' => ['show me a picture of macaque', 'macaque'],
+    'binomial kept intact' => ['photos of Macaca mulatta', 'Macaca mulatta'],
+    'hyphens kept' => ['pics of water-snowflake', 'water-snowflake'],
+]);
