@@ -3,6 +3,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'api_client.dart';
+import 'speech.dart';
 
 /// Point this at your server. Use http://10.0.2.2:8000 for an emulator talking
 /// to a server running on the host machine.
@@ -47,16 +48,102 @@ class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _messages = <Message>[];
+  final _recorder = VoiceRecorder();
+  final _player = SpeechPlayer();
 
   String? _conversationId;
   String? _language; // null = auto, 'en', 'lo'
   bool _sending = false;
+  bool _recording = false;
+  bool _transcribing = false;
+  int? _speakingIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    // Clear the speaker highlight once playback finishes on its own.
+    _player.onComplete.listen((_) {
+      if (mounted) setState(() => _speakingIndex = null);
+    });
+  }
 
   @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+    _recorder.dispose();
+    _player.dispose();
     super.dispose();
+  }
+
+  void _notify(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _toggleRecording() async {
+    if (_transcribing || _sending) return;
+
+    if (_recording) {
+      setState(() {
+        _recording = false;
+        _transcribing = true;
+      });
+
+      try {
+        final path = await _recorder.stop();
+
+        if (path == null) {
+          _notify('Recording was too short.');
+          return;
+        }
+
+        final text = await _api.transcribe(path, language: _language ?? 'auto');
+
+        if (text.isEmpty) {
+          _notify('Could not hear anything. Please try again.');
+          return;
+        }
+
+        _controller.text = text;
+        _controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: text.length),
+        );
+      } catch (e) {
+        _notify(e is ApiException ? e.message : 'Transcription failed.');
+      } finally {
+        if (mounted) setState(() => _transcribing = false);
+      }
+
+      return;
+    }
+
+    if (!await _recorder.start()) {
+      _notify('Microphone permission is required for voice input.');
+      return;
+    }
+
+    setState(() => _recording = true);
+  }
+
+  Future<void> _speak(int index) async {
+    // Tapping the speaker again stops playback.
+    if (_speakingIndex == index) {
+      await _player.stop();
+      setState(() => _speakingIndex = null);
+      return;
+    }
+
+    setState(() => _speakingIndex = index);
+
+    try {
+      await _player.play(await _api.speech(_messages[index].text));
+    } catch (e) {
+      if (mounted) setState(() => _speakingIndex = null);
+      _notify(e is ApiException ? e.message : 'Could not play audio.');
+    }
   }
 
   Future<void> _send() async {
@@ -153,14 +240,21 @@ class _ChatScreenState extends State<ChatScreen> {
                         return const _TypingIndicator();
                       }
 
-                      return _MessageBubble(message: _messages[index]);
+                      return _MessageBubble(
+                        message: _messages[index],
+                        speaking: _speakingIndex == index,
+                        onSpeak: () => _speak(index),
+                      );
                     },
                   ),
           ),
           _Composer(
             controller: _controller,
             sending: _sending,
+            recording: _recording,
+            transcribing: _transcribing,
             onSend: _send,
+            onMic: _toggleRecording,
           ),
         ],
       ),
@@ -200,9 +294,15 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message});
+  const _MessageBubble({
+    required this.message,
+    required this.speaking,
+    required this.onSpeak,
+  });
 
   final Message message;
+  final bool speaking;
+  final VoidCallback onSpeak;
 
   @override
   Widget build(BuildContext context) {
@@ -235,19 +335,37 @@ class _MessageBubble extends StatelessWidget {
         ),
         child: fromUser
             ? Text(message.text, style: TextStyle(color: foreground))
-            : MarkdownBody(
-                data: message.text,
-                selectable: true,
-                styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
-                  p: theme.textTheme.bodyMedium?.copyWith(color: foreground),
-                ),
-                onTapLink: (text, href, title) async {
-                  if (href == null) return;
-                  final uri = Uri.tryParse(href);
-                  if (uri != null && await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  }
-                },
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  MarkdownBody(
+                    data: message.text,
+                    selectable: true,
+                    styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+                      p: theme.textTheme.bodyMedium?.copyWith(color: foreground),
+                    ),
+                    onTapLink: (text, href, title) async {
+                      if (href == null) return;
+                      final uri = Uri.tryParse(href);
+                      if (uri != null && await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                  ),
+                  if (!message.failed)
+                    SizedBox(
+                      height: 32,
+                      child: IconButton(
+                        tooltip: speaking ? 'Stop' : 'Listen',
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        iconSize: 20,
+                        color: speaking ? theme.colorScheme.primary : foreground.withValues(alpha: 0.7),
+                        icon: Icon(speaking ? Icons.stop_circle_outlined : Icons.volume_up_outlined),
+                        onPressed: onSpeak,
+                      ),
+                    ),
+                ],
               ),
       ),
     );
@@ -282,15 +400,23 @@ class _Composer extends StatelessWidget {
   const _Composer({
     required this.controller,
     required this.sending,
+    required this.recording,
+    required this.transcribing,
     required this.onSend,
+    required this.onMic,
   });
 
   final TextEditingController controller;
   final bool sending;
+  final bool recording;
+  final bool transcribing;
   final VoidCallback onSend;
+  final VoidCallback onMic;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return SafeArea(
       top: false,
       child: Padding(
@@ -303,10 +429,15 @@ class _Composer extends StatelessWidget {
                 controller: controller,
                 minLines: 1,
                 maxLines: 5,
+                enabled: !recording && !transcribing,
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => onSend(),
                 decoration: InputDecoration(
-                  hintText: 'Ask a question…',
+                  hintText: recording
+                      ? 'Listening… tap the mic to stop'
+                      : transcribing
+                          ? 'Transcribing…'
+                          : 'Ask a question…',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),
@@ -317,9 +448,21 @@ class _Composer extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: recording ? 'Stop recording' : 'Voice input',
+              onPressed: sending || transcribing ? null : onMic,
+              color: recording ? theme.colorScheme.error : null,
+              icon: transcribing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(recording ? Icons.stop_circle : Icons.mic_none),
+            ),
             IconButton.filled(
-              onPressed: sending ? null : onSend,
+              onPressed: sending || recording || transcribing ? null : onSend,
               icon: const Icon(Icons.arrow_upward),
             ),
           ],

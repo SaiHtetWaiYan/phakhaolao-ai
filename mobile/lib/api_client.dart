@@ -84,6 +84,51 @@ class ApiClient {
     );
   }
 
+  /// Uploads a recording and returns the transcribed text.
+  ///
+  /// [language] is 'en', 'lo', or 'auto' — the server transcribes with both
+  /// and keeps the higher-confidence result when auto, since Lao and English
+  /// cannot be reliably auto-detected in one pass.
+  Future<String> transcribe(String filePath, {String language = 'auto'}) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/api/v1/transcribe'),
+    )
+      ..headers.addAll({
+        'X-Device-Token': await _token(),
+        'Accept': 'application/json',
+      })
+      ..fields['language'] = language
+      ..files.add(await http.MultipartFile.fromPath('audio', filePath));
+
+    final streamed = await request.send().timeout(const Duration(seconds: 90));
+    final response = await http.Response.fromStream(streamed);
+    final body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+
+    if (response.statusCode != 200) {
+      throw ApiException(body['message'] as String? ?? 'Could not transcribe the recording.');
+    }
+
+    return (body['text'] as String? ?? '').trim();
+  }
+
+  /// Returns spoken audio bytes for [text], ready to hand to the player.
+  Future<List<int>> speech(String text) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/api/v1/tts'),
+          headers: await _headers(),
+          body: jsonEncode({'text': text}),
+        )
+        .timeout(const Duration(seconds: 120));
+
+    if (response.statusCode != 200) {
+      throw const ApiException('Could not generate speech.');
+    }
+
+    return response.bodyBytes;
+  }
+
   Future<bool> health() async {
     try {
       final response = await http

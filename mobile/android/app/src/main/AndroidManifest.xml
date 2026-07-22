@@ -2,10 +2,12 @@
     <!-- Flutter only adds this to the debug/profile manifests, so release
          builds need it declared here or every network call fails silently. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Voice input. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application
         android:label="PhaKhaoLao AI"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/launcher_icon">
         <activity
             android:name=".MainActivity"
             android:exported="true"
