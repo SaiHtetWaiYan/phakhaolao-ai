@@ -1,9 +1,0 @@
-flutter_launcher_icons:
-  android: "launcher_icon"
-  ios: true
-  image_path: "assets/app_icon.png"
-  # Android 8+ adaptive icon: the emblem is padded so the system mask cannot
-  # clip it, on the logo's own cream background.
-  adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/app_icon_foreground.png"
-  remove_alpha_ios: true
