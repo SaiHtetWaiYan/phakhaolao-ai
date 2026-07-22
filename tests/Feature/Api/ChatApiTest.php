@@ -1,0 +1,137 @@
+<?php
+
+use App\Models\AgentConversation;
+use App\Models\AgentConversationMessage;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
+
+uses(RefreshDatabase::class);
+
+const DEVICE_TOKEN = 'a4f1c2d3-e5b6-4789-9abc-def012345678';
+
+function withDevice(array $headers = []): array
+{
+    return array_merge(['X-Device-Token' => DEVICE_TOKEN], $headers);
+}
+
+function makeConversation(string $deviceToken = DEVICE_TOKEN): AgentConversation
+{
+    return AgentConversation::create([
+        'id' => (string) Str::uuid(),
+        'user_id' => null,
+        'guest_token' => $deviceToken,
+        'title' => 'Test conversation',
+    ]);
+}
+
+it('reports health without a device token', function () {
+    $this->getJson('/api/v1/health')
+        ->assertSuccessful()
+        ->assertJson(['status' => 'ok', 'api_version' => 'v1']);
+});
+
+it('rejects requests without a device token', function () {
+    $this->postJson('/api/v1/chat', ['message' => 'hello'])
+        ->assertUnauthorized();
+});
+
+it('rejects a malformed device token', function () {
+    $this->postJson('/api/v1/chat', ['message' => 'hello'], ['X-Device-Token' => 'short'])
+        ->assertUnauthorized();
+});
+
+it('validates the message', function (array $payload, string $field) {
+    $this->postJson('/api/v1/chat', $payload, withDevice())
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors($field);
+})->with([
+    'missing message' => [[], 'message'],
+    'empty message' => [['message' => ''], 'message'],
+    'too long' => [['message' => str_repeat('a', 5001)], 'message'],
+    'bad conversation id' => [['message' => 'hi', 'conversation_id' => 'not-a-uuid'], 'conversation_id'],
+    'bad language' => [['message' => 'hi', 'response_language' => 'fr'], 'response_language'],
+]);
+
+it('404s when sending to a conversation owned by another device', function () {
+    $other = makeConversation('someone-elses-device-token-1234');
+
+    $this->postJson('/api/v1/chat', [
+        'message' => 'hello',
+        'conversation_id' => $other->id,
+    ], withDevice())->assertNotFound();
+});
+
+it('lists only conversations belonging to the device', function () {
+    $mine = makeConversation();
+    makeConversation('someone-elses-device-token-1234');
+
+    $response = $this->getJson('/api/v1/conversations', withDevice())->assertSuccessful();
+
+    expect($response->json('data'))->toHaveCount(1)
+        ->and($response->json('data.0.id'))->toBe($mine->id);
+});
+
+it('returns a conversation with its messages', function () {
+    $conversation = makeConversation();
+
+    AgentConversationMessage::create([
+        'id' => (string) Str::uuid(),
+        'conversation_id' => $conversation->id,
+        'user_id' => null,
+        'role' => 'user',
+        'agent' => 'user',
+        'content' => 'What is a champion?',
+        'attachments' => [], 'tool_calls' => [], 'tool_results' => [], 'usage' => [], 'meta' => [],
+    ]);
+
+    $this->getJson("/api/v1/conversations/{$conversation->id}", withDevice())
+        ->assertSuccessful()
+        ->assertJsonPath('id', $conversation->id)
+        ->assertJsonPath('messages.0.content', 'What is a champion?');
+});
+
+it('hides another device conversation', function () {
+    $other = makeConversation('someone-elses-device-token-1234');
+
+    $this->getJson("/api/v1/conversations/{$other->id}", withDevice())->assertNotFound();
+});
+
+it('deletes a conversation and its messages', function () {
+    $conversation = makeConversation();
+
+    AgentConversationMessage::create([
+        'id' => (string) Str::uuid(),
+        'conversation_id' => $conversation->id,
+        'user_id' => null,
+        'role' => 'user',
+        'agent' => 'user',
+        'content' => 'hi',
+        'attachments' => [], 'tool_calls' => [], 'tool_results' => [], 'usage' => [], 'meta' => [],
+    ]);
+
+    $this->deleteJson("/api/v1/conversations/{$conversation->id}", [], withDevice())
+        ->assertSuccessful();
+
+    expect(AgentConversation::find($conversation->id))->toBeNull()
+        ->and(AgentConversationMessage::where('conversation_id', $conversation->id)->count())->toBe(0);
+});
+
+it('will not delete another device conversation', function () {
+    $other = makeConversation('someone-elses-device-token-1234');
+
+    $this->deleteJson("/api/v1/conversations/{$other->id}", [], withDevice())->assertNotFound();
+
+    expect(AgentConversation::find($other->id))->not->toBeNull();
+});
+
+it('blocks sending once the daily limit is reached', function () {
+    config(['chat.daily_message_limit' => 1]);
+
+    // Burn the single allowance without invoking the model.
+    $key = 'chat-usage:'.md5(DEVICE_TOKEN).':'.now(config('chat.limit_timezone'))->toDateString();
+    cache()->put($key, 1, now()->addDay());
+
+    $this->postJson('/api/v1/chat', ['message' => 'hello'], withDevice())
+        ->assertStatus(429)
+        ->assertJsonPath('limit', 1);
+});
