@@ -27,7 +27,14 @@ class SpeciesImageResponder
             return false;
         }
 
-        // "pic"/"pics" are as common as the full words in practice.
+        // A question that also asks something else ("how many X, and show me
+        // pics") is answered far better by the model, which can count, show
+        // several species and link each one. Only take the shortcut for a bare
+        // request for pictures.
+        if (preg_match('/\b(how|what|which|why|when|where|who|compare|list|count)\b/i', $normalized) === 1) {
+            return false;
+        }
+
         return preg_match(
             '/\b(pic|pics|photo|photos|photograph|photographs|image|images|picture|pictures)\b/i',
             $normalized

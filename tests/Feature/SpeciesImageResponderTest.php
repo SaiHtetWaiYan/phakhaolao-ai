@@ -7,7 +7,6 @@ use App\Services\SpeciesImageResponder;
 it('recognises a photo request', function (string $message) {
     expect(app(SpeciesImageResponder::class)->isImageRequest($message))->toBeTrue();
 })->with([
-    'how many monkey species, can you show me some pics?',
     'show me a pic',
     'can you show me some photos',
     'do you have a picture of it',
@@ -22,6 +21,11 @@ it('leaves ordinary questions to the model', function (string $message) {
     'tell me about macaques',
     '',
     'how many champions per province',
+    // Compound questions belong to the model: it can count, show several
+    // species and link each one, which the direct lookup cannot.
+    'how many monkey species, can you show me some pics?',
+    'which snakes are venomous? show photos',
+    'what is a macaque and show me a picture',
 ]);
 
 it('widens short follow-ups with recent context', function () {
