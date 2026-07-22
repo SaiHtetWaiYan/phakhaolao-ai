@@ -1265,12 +1265,38 @@ document.addEventListener('DOMContentLoaded', function () {
             widths.push(Math.ceil(widest));
         }
 
+        // Split a word with no spaces — a URL, typically — that cannot fit.
+        const breakWord = (word, width) => {
+            const pieces = [];
+            let piece = '';
+
+            for (const char of word) {
+                if (measurer.measureText(piece + char).width > width && piece) {
+                    pieces.push(piece);
+                    piece = char;
+                } else {
+                    piece += char;
+                }
+            }
+
+            if (piece) pieces.push(piece);
+            return pieces;
+        };
+
         const wrap = (text, font, width) => {
             measurer.font = font;
             const lines = [];
             let line = '';
 
             String(text).split(/\s+/).forEach((word) => {
+                if (measurer.measureText(word).width > width) {
+                    if (line) { lines.push(line); line = ''; }
+                    const pieces = breakWord(word, width);
+                    lines.push(...pieces.slice(0, -1));
+                    line = pieces[pieces.length - 1] ?? '';
+                    return;
+                }
+
                 const candidate = line ? line + ' ' + word : word;
                 if (measurer.measureText(candidate).width <= width || !line) {
                     line = candidate;
