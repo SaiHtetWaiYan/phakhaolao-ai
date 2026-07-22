@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'api_client.dart';
 import 'speech.dart';
+import 'strings.dart';
 
 /// Point this at your server. Use http://10.0.2.2:8000 for an emulator talking
 /// to a server running on the host machine.
@@ -98,6 +99,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   String? get _apiLanguage => _language == 'auto' ? null : _language;
 
+  Strings get _t => Strings.of(_language);
+
   void _notify(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -132,7 +135,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _messages.add(Message(
           text: e is ApiException
               ? e.message
-              : 'Could not reach the server. Check your connection.',
+              : _t('network_error'),
           fromUser: false,
           failed: true,
         ));
@@ -183,7 +186,7 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       _scrollToBottom();
     } catch (e) {
-      _notify(e is ApiException ? e.message : 'Could not open that chat.');
+      _notify(e is ApiException ? e.message : _t('open_failed'));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -202,14 +205,14 @@ class _ChatScreenState extends State<ChatScreen> {
         final path = await _recorder.stop();
 
         if (path == null) {
-          _notify('Recording was too short.');
+          _notify(_t('too_short'));
           return;
         }
 
         final text = await _api.transcribe(path, language: _language);
 
         if (text.isEmpty) {
-          _notify('Could not hear anything. Please try again.');
+          _notify(_t('not_heard'));
           return;
         }
 
@@ -218,7 +221,7 @@ class _ChatScreenState extends State<ChatScreen> {
           TextPosition(offset: text.length),
         );
       } catch (e) {
-        _notify(e is ApiException ? e.message : 'Transcription failed.');
+        _notify(e is ApiException ? e.message : _t('transcribe_failed'));
       } finally {
         if (mounted) setState(() => _transcribing = false);
       }
@@ -227,7 +230,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     if (!await _recorder.start()) {
-      _notify('Microphone permission is required for voice input.');
+      _notify(_t('mic_permission'));
       return;
     }
 
@@ -247,13 +250,13 @@ class _ChatScreenState extends State<ChatScreen> {
       await _player.play(await _api.speech(_messages[index].text));
     } catch (e) {
       if (mounted) setState(() => _speakingIndex = null);
-      _notify(e is ApiException ? e.message : 'Could not play audio.');
+      _notify(e is ApiException ? e.message : _t('audio_failed'));
     }
   }
 
   void _copy(String text) {
     Clipboard.setData(ClipboardData(text: text));
-    _notify('Copied');
+    _notify(_t('copied'));
   }
 
   @override
@@ -261,9 +264,13 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       drawer: _HistoryDrawer(
         api: _api,
+        t: _t,
         currentId: _conversationId,
         onOpen: _openConversation,
         onNewChat: _newChat,
+        onDeleted: (id) {
+          if (id == _conversationId) _newChat();
+        },
       ),
       appBar: AppBar(
         title: const Text(
@@ -272,18 +279,18 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           PopupMenuButton<String>(
-            tooltip: 'Reply language',
+            tooltip: _t('reply_language'),
             icon: const Icon(Icons.translate),
             initialValue: _language,
             onSelected: (value) => setState(() => _language = value),
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'auto', child: Text('Auto')),
-              PopupMenuItem(value: 'en', child: Text('English')),
-              PopupMenuItem(value: 'lo', child: Text('ລາວ')),
+            itemBuilder: (context) => [
+              PopupMenuItem(value: 'auto', child: Text(_t('language_auto'))),
+              const PopupMenuItem(value: 'en', child: Text('English')),
+              const PopupMenuItem(value: 'lo', child: Text('ລາວ')),
             ],
           ),
           IconButton(
-            tooltip: 'New chat',
+            tooltip: _t('new_chat'),
             icon: const Icon(Icons.edit_square),
             onPressed: _messages.isEmpty ? null : _newChat,
           ),
@@ -293,7 +300,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: _messages.isEmpty && !_sending
-                ? const _EmptyState()
+                ? _EmptyState(t: _t)
                 : ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -309,6 +316,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           ? _UserMessage(text: message.text)
                           : _AssistantMessage(
                               message: message,
+                              t: _t,
                               speaking: _speakingIndex == index,
                               onSpeak: () => _speak(index),
                               onCopy: () => _copy(message.text),
@@ -317,6 +325,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
           ),
           _Composer(
+            t: _t,
             controller: _controller,
             sending: _sending,
             recording: _recording,
@@ -331,22 +340,72 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 /// Slide-out list of past chats, loaded from the server each time it opens.
-class _HistoryDrawer extends StatelessWidget {
+class _HistoryDrawer extends StatefulWidget {
   const _HistoryDrawer({
     required this.api,
+    required this.t,
     required this.currentId,
     required this.onOpen,
     required this.onNewChat,
+    required this.onDeleted,
   });
 
   final ApiClient api;
+  final Strings t;
   final String? currentId;
   final void Function(String id) onOpen;
   final VoidCallback onNewChat;
+  final void Function(String id) onDeleted;
+
+  @override
+  State<_HistoryDrawer> createState() => _HistoryDrawerState();
+}
+
+class _HistoryDrawerState extends State<_HistoryDrawer> {
+  late Future<List<Conversation>> _future = widget.api.conversations();
+
+  void _reload() => setState(() => _future = widget.api.conversations());
+
+  /// Confirms first: deleting a conversation cannot be undone.
+  Future<void> _confirmDelete(Conversation conversation) async {
+    final t = widget.t;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t('delete_title')),
+        content: Text(t('delete_body')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(t('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(t('delete')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await widget.api.deleteConversation(conversation.id);
+      widget.onDeleted(conversation.id);
+      _reload();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e is ApiException ? e.message : t('delete_failed'))),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = widget.t;
 
     return Drawer(
       child: SafeArea(
@@ -366,29 +425,29 @@ class _HistoryDrawer extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.edit_square),
-              title: const Text('New chat'),
+              title: Text(t('new_chat')),
               onTap: () {
                 Navigator.pop(context);
-                onNewChat();
+                widget.onNewChat();
               },
             ),
             const Divider(height: 1),
             Expanded(
               child: FutureBuilder<List<Conversation>>(
-                future: api.conversations(),
+                future: _future,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
                   if (snapshot.hasError) {
-                    return const _DrawerNotice('Could not load your chats.');
+                    return _DrawerNotice(t('chats_failed'));
                   }
 
                   final conversations = snapshot.data ?? [];
 
                   if (conversations.isEmpty) {
-                    return const _DrawerNotice('No chats yet.');
+                    return _DrawerNotice(t('no_chats'));
                   }
 
                   return ListView.builder(
@@ -399,16 +458,23 @@ class _HistoryDrawer extends StatelessWidget {
 
                       return ListTile(
                         dense: true,
-                        selected: conversation.id == currentId,
+                        selected: conversation.id == widget.currentId,
                         leading: const Icon(Icons.chat_bubble_outline, size: 20),
                         title: Text(
                           conversation.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        trailing: IconButton(
+                          tooltip: t('delete'),
+                          iconSize: 18,
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _confirmDelete(conversation),
+                        ),
                         onTap: () {
                           Navigator.pop(context);
-                          onOpen(conversation.id);
+                          widget.onOpen(conversation.id);
                         },
                       );
                     },
@@ -444,7 +510,9 @@ class _DrawerNotice extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({required this.t});
+
+  final Strings t;
 
   @override
   Widget build(BuildContext context) {
@@ -459,15 +527,15 @@ class _EmptyState extends StatelessWidget {
             Image.asset('assets/logo.png', width: 88, height: 88),
             const SizedBox(height: 20),
             Text(
-              'Ask about Lao biodiversity',
+              t('welcome_title'),
+              textAlign: TextAlign.center,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Species, champions, library resources and stories from the '
-              'PhaKhaoLao catalogue.',
+              t('welcome_subtitle'),
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall,
             ),
@@ -510,12 +578,14 @@ class _UserMessage extends StatelessWidget {
 class _AssistantMessage extends StatelessWidget {
   const _AssistantMessage({
     required this.message,
+    required this.t,
     required this.speaking,
     required this.onSpeak,
     required this.onCopy,
   });
 
   final Message message;
+  final Strings t;
   final bool speaking;
   final VoidCallback onSpeak;
   final VoidCallback onCopy;
@@ -563,13 +633,13 @@ class _AssistantMessage extends StatelessWidget {
                 children: [
                   _ActionButton(
                     icon: speaking ? Icons.stop_circle_outlined : Icons.volume_up_outlined,
-                    tooltip: speaking ? 'Stop' : 'Listen',
+                    tooltip: speaking ? t('stop') : t('listen'),
                     active: speaking,
                     onPressed: onSpeak,
                   ),
                   _ActionButton(
                     icon: Icons.copy_rounded,
-                    tooltip: 'Copy',
+                    tooltip: t('copy'),
                     onPressed: onCopy,
                   ),
                 ],
@@ -636,6 +706,7 @@ class _TypingIndicator extends StatelessWidget {
 
 class _Composer extends StatelessWidget {
   const _Composer({
+    required this.t,
     required this.controller,
     required this.sending,
     required this.recording,
@@ -644,6 +715,7 @@ class _Composer extends StatelessWidget {
     required this.onMic,
   });
 
+  final Strings t;
   final TextEditingController controller;
   final bool sending;
   final bool recording;
@@ -680,10 +752,10 @@ class _Composer extends StatelessWidget {
                   style: theme.textTheme.bodyLarge,
                   decoration: InputDecoration(
                     hintText: recording
-                        ? 'Listening…'
+                        ? t('listening')
                         : transcribing
-                            ? 'Transcribing…'
-                            : 'Ask anything',
+                            ? t('transcribing')
+                            : t('placeholder'),
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -691,7 +763,7 @@ class _Composer extends StatelessWidget {
                 ),
               ),
               IconButton(
-                tooltip: recording ? 'Stop recording' : 'Voice input',
+                tooltip: recording ? t('stop') : t('listen'),
                 onPressed: sending || transcribing ? null : onMic,
                 color: recording ? theme.colorScheme.error : null,
                 icon: transcribing

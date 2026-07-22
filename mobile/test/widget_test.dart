@@ -6,7 +6,7 @@ void main() {
   testWidgets('shows the empty state prompt on launch', (tester) async {
     await tester.pumpWidget(const PhaKhaoLaoApp());
 
-    expect(find.text('Ask about Lao biodiversity'), findsOneWidget);
+    expect(find.text('How can I help you today?'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
   });
 
@@ -75,5 +75,37 @@ void main() {
     await tester.pump();
 
     expect(find.text('New chat'), findsOneWidget);
+  });
+
+  testWidgets('switching to Lao translates the interface, not just replies',
+      (tester) async {
+    await tester.pumpWidget(const PhaKhaoLaoApp());
+
+    expect(find.text('How can I help you today?'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.translate));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ລາວ'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ມື້ນີ້ຂ້ອຍຊ່ວຍຫຍັງທ່ານໄດ້ແດ່?'), findsOneWidget);
+    expect(find.text('How can I help you today?'), findsNothing);
+  });
+
+  testWidgets('the Lao interface reverts when English is chosen',
+      (tester) async {
+    await tester.pumpWidget(const PhaKhaoLaoApp());
+
+    await tester.tap(find.byIcon(Icons.translate));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ລາວ'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.translate));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('English'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('How can I help you today?'), findsOneWidget);
   });
 }
