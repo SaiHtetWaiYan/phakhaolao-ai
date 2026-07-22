@@ -165,3 +165,23 @@ it('rejects a file that is not an image', function () {
         'image' => UploadedFile::fake()->create('notes.pdf', 100, 'application/pdf'),
     ], withDevice())->assertUnprocessable()->assertJsonValidationErrors('image');
 });
+
+// The mobile client uploads with no declared type, which arrives as
+// application/octet-stream; sending that to the vision model is rejected.
+it('detects the image type from its contents, not the client claim', function () {
+    $path = tempnam(sys_get_temp_dir(), 'img').'.png';
+    copy(public_path('favicon-192.png'), $path);
+
+    $upload = new UploadedFile(
+        $path,
+        'plant.png',
+        'application/octet-stream', // what Flutter sends
+        null,
+        true
+    );
+
+    expect($upload->getClientMimeType())->toBe('application/octet-stream')
+        ->and($upload->getMimeType())->toStartWith('image/');
+
+    unlink($path);
+});

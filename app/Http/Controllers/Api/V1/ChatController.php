@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Laravel\Ai\Files\Image;
+use Laravel\Ai\Files\Base64Image;
 use Laravel\Ai\Messages\AssistantMessage;
 use Laravel\Ai\Messages\UserMessage;
 use Throwable;
@@ -57,8 +57,17 @@ class ChatController extends Controller
         $imageUrl = null;
 
         if ($request->hasFile('image')) {
-            $attachments[] = Image::fromUpload($request->file('image'));
-            $imageUrl = '/storage/'.$request->file('image')->store('chat-images', 'public');
+            $upload = $request->file('image');
+
+            // Image::fromUpload() trusts the client's declared type, and the
+            // mobile client sends application/octet-stream, which the provider
+            // rejects. Detect the type from the file's own contents instead.
+            $attachments[] = new Base64Image(
+                base64_encode($upload->getContent()),
+                $upload->getMimeType() ?: 'image/jpeg',
+            )->as($upload->getClientOriginalName());
+
+            $imageUrl = '/storage/'.$upload->store('chat-images', 'public');
         }
 
         $conversation ??= AgentConversation::create([

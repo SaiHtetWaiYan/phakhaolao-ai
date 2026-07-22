@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Talks to the PhaKhaoLao AI v1 API.
@@ -79,7 +80,13 @@ class ApiClient {
           'Accept': 'application/json',
         })
         ..fields['message'] = message
-        ..files.add(await http.MultipartFile.fromPath('image', imagePath));
+        // Without an explicit type this uploads as application/octet-stream,
+        // which the vision model refuses.
+        ..files.add(await http.MultipartFile.fromPath(
+          'image',
+          imagePath,
+          contentType: MediaType('image', _imageSubtype(imagePath)),
+        ));
 
       if (conversationId != null) request.fields['conversation_id'] = conversationId;
       if (responseLanguage != null) {
@@ -196,6 +203,14 @@ class ApiClient {
 
     return response.bodyBytes;
   }
+
+  /// Maps a file extension to the image subtype the server expects.
+  String _imageSubtype(String path) => switch (path.split('.').last.toLowerCase()) {
+        'png' => 'png',
+        'webp' => 'webp',
+        'gif' => 'gif',
+        _ => 'jpeg',
+      };
 
   Future<bool> health() async {
     try {
