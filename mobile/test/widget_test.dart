@@ -15,7 +15,7 @@ void main() {
     await tester.pumpWidget(const PhaKhaoLaoApp());
 
     final button = tester.widget<IconButton>(
-      find.widgetWithIcon(IconButton, Icons.add_comment_outlined),
+      find.widgetWithIcon(IconButton, Icons.edit_square),
     );
 
     expect(button.onPressed, isNull);
@@ -29,5 +29,51 @@ void main() {
     await tester.pump();
 
     expect(find.text('How many champions?'), findsOneWidget);
+  });
+
+  // A null popup-menu result is indistinguishable from dismissing the menu, so
+  // every language option must carry a non-null value or it can never be
+  // selected.
+  testWidgets('every language option is selectable', (tester) async {
+    await tester.pumpWidget(const PhaKhaoLaoApp());
+
+    await tester.tap(find.byIcon(Icons.translate));
+    await tester.pumpAndSettle();
+
+    final items = tester
+        .widgetList<PopupMenuItem<String>>(find.byType(PopupMenuItem<String>))
+        .toList();
+
+    expect(items, hasLength(3));
+    expect(items.every((item) => item.value != null), isTrue);
+    expect(items.map((item) => item.value), containsAll(['auto', 'en', 'lo']));
+  });
+
+  testWidgets('choosing Lao keeps the menu selection', (tester) async {
+    await tester.pumpWidget(const PhaKhaoLaoApp());
+
+    await tester.tap(find.byIcon(Icons.translate));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ລາວ'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.translate));
+    await tester.pumpAndSettle();
+
+    final button = tester.widget<PopupMenuButton<String>>(
+      find.byType(PopupMenuButton<String>),
+    );
+
+    expect(button.initialValue, 'lo');
+  });
+
+  testWidgets('opens the history drawer', (tester) async {
+    await tester.pumpWidget(const PhaKhaoLaoApp());
+
+    final state = tester.state<ScaffoldState>(find.byType(Scaffold));
+    state.openDrawer();
+    await tester.pump();
+
+    expect(find.text('New chat'), findsOneWidget);
   });
 }

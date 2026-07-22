@@ -84,6 +84,50 @@ class ApiClient {
     );
   }
 
+  /// Lists this device's conversations, most recently updated first.
+  Future<List<Conversation>> conversations() async {
+    final response = await http
+        .get(Uri.parse('$baseUrl/api/v1/conversations'), headers: await _headers())
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw const ApiException('Could not load your chats.');
+    }
+
+    final body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+
+    return (body['data'] as List<dynamic>)
+        .map((item) => Conversation.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Loads one conversation with its full message history.
+  Future<List<ChatMessage>> conversation(String id) async {
+    final response = await http
+        .get(Uri.parse('$baseUrl/api/v1/conversations/$id'), headers: await _headers())
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw const ApiException('Could not open that chat.');
+    }
+
+    final body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+
+    return (body['messages'] as List<dynamic>)
+        .map((item) => ChatMessage.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> deleteConversation(String id) async {
+    final response = await http
+        .delete(Uri.parse('$baseUrl/api/v1/conversations/$id'), headers: await _headers())
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw const ApiException('Could not delete that chat.');
+    }
+  }
+
   /// Uploads a recording and returns the transcribed text.
   ///
   /// [language] is 'en', 'lo', or 'auto' — the server transcribes with both
@@ -147,6 +191,32 @@ class ChatReply {
 
   final String conversationId;
   final String reply;
+}
+
+class Conversation {
+  const Conversation({required this.id, required this.title});
+
+  final String id;
+  final String title;
+
+  factory Conversation.fromJson(Map<String, dynamic> json) => Conversation(
+        id: json['id'] as String,
+        title: (json['title'] as String?)?.trim().isNotEmpty == true
+            ? json['title'] as String
+            : 'New chat',
+      );
+}
+
+class ChatMessage {
+  const ChatMessage({required this.text, required this.fromUser});
+
+  final String text;
+  final bool fromUser;
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
+        text: json['content'] as String? ?? '',
+        fromUser: json['role'] == 'user',
+      );
 }
 
 class ApiException implements Exception {
