@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\ChatController;
 use App\Http\Controllers\SttController;
+use App\Http\Controllers\TableExportController;
 use App\Http\Controllers\TtsController;
 use App\Http\Middleware\ResolveDeviceToken;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +34,11 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('/conversations/{id}', [ChatController::class, 'destroy'])
             ->middleware('throttle:20,1')
             ->name('api.conversations.destroy');
+
+        // Shares the web controller; the app posts the table it rendered.
+        Route::post('/export-table', [TableExportController::class, 'xlsx'])
+            ->middleware('throttle:20,1')
+            ->name('api.export-table');
 
         // Speech reuses the web controllers: both already return JSON/audio.
         Route::post('/tts', [TtsController::class, 'speak'])
