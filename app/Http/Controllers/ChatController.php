@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Ai\Agents\ChatAssistant;
 use App\Http\Requests\SendMessageRequest;
+use App\Jobs\GenerateConversationTitle;
 use App\Models\AgentConversation;
 use App\Models\AgentConversationMessage;
 use App\Models\Species;
@@ -358,6 +359,17 @@ class ChatController extends Controller
         ]);
 
         $conversation->touch();
+
+        // First reply in a conversation: name it after what was discussed,
+        // once the response has already gone back to the browser.
+        $isFirstReply = AgentConversationMessage::query()
+            ->where('conversation_id', $conversationId)
+            ->where('role', 'assistant')
+            ->count() === 1;
+
+        if ($isFirstReply) {
+            GenerateConversationTitle::dispatchAfterResponse($conversationId);
+        }
 
         return response()->json(['status' => 'ok', 'conversation_id' => $conversationId]);
     }

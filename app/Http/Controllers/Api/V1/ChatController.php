@@ -6,6 +6,7 @@ use App\Ai\Agents\ChatAssistant;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\ResolveDeviceToken;
 use App\Http\Requests\Api\SendChatMessageRequest;
+use App\Jobs\GenerateConversationTitle;
 use App\Models\AgentConversation;
 use App\Models\AgentConversationMessage;
 use Illuminate\Database\Eloquent\Builder;
@@ -70,6 +71,8 @@ class ChatController extends Controller
             $imageUrl = '/storage/'.$upload->store('chat-images', 'public');
         }
 
+        $isNewConversation = $conversation === null;
+
         $conversation ??= AgentConversation::create([
             'id' => (string) Str::uuid(),
             'user_id' => null,
@@ -105,6 +108,11 @@ class ChatController extends Controller
         // Persisted server-side, unlike the web client which posts it back.
         $this->storeMessage($conversation->id, 'assistant', $reply);
         $conversation->touch();
+
+        // After the response, so naming the conversation costs the user nothing.
+        if ($isNewConversation) {
+            GenerateConversationTitle::dispatchAfterResponse($conversation->id);
+        }
 
         return response()->json([
             'conversation_id' => $conversation->id,
