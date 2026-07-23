@@ -184,7 +184,7 @@ class ChatController extends Controller
                     'id' => (string) Str::uuid(),
                     'user_id' => $owner['user_id'],
                     'guest_token' => $owner['guest_token'],
-                    'title' => Str::limit($originalMessage !== '' ? $originalMessage : $message, 18),
+                    'title' => $this->conversationTitle($originalMessage !== '' ? $originalMessage : $message),
                 ]);
                 $conversationId = $conversation->id;
             } else {
@@ -484,6 +484,19 @@ class ChatController extends Controller
             'status' => 'ok',
             'settings' => $settings,
         ]);
+    }
+
+    /**
+     * A readable title taken from the opening message.
+     *
+     * Long enough for the client to ellipsize at its own width: cutting to a
+     * short fixed length here left titles chopped mid-word.
+     */
+    private function conversationTitle(string $message): string
+    {
+        $title = trim((string) preg_replace('/\s+/u', ' ', $message));
+
+        return $title === '' ? 'Photo' : Str::limit($title, 60, '');
     }
 
     private function sanitizeUtf8(?string $value): ?string

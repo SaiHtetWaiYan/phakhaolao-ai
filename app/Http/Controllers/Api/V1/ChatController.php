@@ -74,7 +74,7 @@ class ChatController extends Controller
             'id' => (string) Str::uuid(),
             'user_id' => null,
             'guest_token' => $deviceToken,
-            'title' => Str::limit($message !== '' ? $message : 'Photo', 18),
+            'title' => $this->conversationTitle($message),
         ]);
 
         // Store what the user actually wrote, not the identification prompt.
@@ -111,6 +111,19 @@ class ChatController extends Controller
             'reply' => $reply,
             'image_url' => $imageUrl,
         ]);
+    }
+
+    /**
+     * A readable title taken from the opening message.
+     *
+     * Long enough for the client to ellipsize at its own width: cutting to a
+     * short fixed length here left titles chopped mid-word.
+     */
+    private function conversationTitle(string $message): string
+    {
+        $title = trim((string) preg_replace('/\s+/u', ' ', $message));
+
+        return $title === '' ? 'Photo' : Str::limit($title, 60, '');
     }
 
     /**

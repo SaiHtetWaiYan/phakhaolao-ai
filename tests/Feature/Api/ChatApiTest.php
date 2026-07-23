@@ -185,3 +185,24 @@ it('detects the image type from its contents, not the client claim', function ()
 
     unlink($path);
 });
+
+// Titles were cut to 18 characters with an ellipsis, so a history row read
+// "Which plants are u...". They now carry enough text for the client to
+// truncate at its own width.
+it('builds a readable conversation title', function (string $message, string $expected) {
+    $method = new ReflectionMethod(\App\Http\Controllers\Api\V1\ChatController::class, 'conversationTitle');
+    $method->setAccessible(true);
+
+    expect($method->invoke(app(\App\Http\Controllers\Api\V1\ChatController::class), $message))->toBe($expected);
+})->with([
+    'short question kept whole' => [
+        'Which plants are used in Lao cooking?',
+        'Which plants are used in Lao cooking?',
+    ],
+    'newlines collapsed' => ["How many\n\nchampions?", 'How many champions?'],
+    'photo with no caption' => ['', 'Photo'],
+    'very long message trimmed without an ellipsis' => [
+        str_repeat('a', 80),
+        str_repeat('a', 60),
+    ],
+]);
