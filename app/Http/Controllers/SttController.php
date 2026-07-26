@@ -62,7 +62,10 @@ class SttController extends Controller
         }
 
         if (str_starts_with($binary, 'RIFF')) {
-            return ['encoding' => 'LINEAR16', 'sampleRateHertz' => null];
+            // LINEAR16 means headerless PCM to Google, so it demands a rate.
+            // Read the real one from the WAV header rather than assume: iOS
+            // records at the hardware rate regardless of what was requested.
+            return ['encoding' => 'LINEAR16', 'sampleRateHertz' => $this->wavSampleRate($binary)];
         }
 
         if (str_starts_with($binary, 'fLaC')) {
@@ -122,6 +125,22 @@ class SttController extends Controller
             'text' => trim($text),
             'confidence' => (float) ($results[0]['alternatives'][0]['confidence'] ?? 0.0),
         ];
+    }
+
+    /**
+     * The sample rate recorded in a WAV header, or null if it looks wrong.
+     *
+     * Bytes 24-27 of a canonical WAV hold it as a little-endian integer.
+     */
+    private function wavSampleRate(string $binary): ?int
+    {
+        if (strlen($binary) < 28) {
+            return null;
+        }
+
+        $rate = unpack('V', substr($binary, 24, 4))[1] ?? 0;
+
+        return $rate >= 8000 && $rate <= 48000 ? $rate : null;
     }
 
     private function googleAccessToken(): string
