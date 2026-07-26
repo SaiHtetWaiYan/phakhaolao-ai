@@ -111,7 +111,12 @@ class SttController extends Controller
         }
 
         if (! $response->successful()) {
-            Log::error('STT failed', ['status' => $response->status(), 'error' => $response->json('error')]);
+            Log::error('STT failed', [
+                'status' => $response->status(),
+                'error' => $response->json('error'),
+                'sent_encoding' => $format['encoding'],
+                'sent_rate' => $format['sampleRateHertz'],
+            ]);
 
             return ['text' => '', 'confidence' => 0.0];
         }
@@ -128,19 +133,36 @@ class SttController extends Controller
     }
 
     /**
-     * The sample rate recorded in a WAV header, or null if it looks wrong.
+     * The sample rate declared in a WAV file's "fmt " chunk.
      *
-     * Bytes 24-27 of a canonical WAV hold it as a little-endian integer.
+     * The chunk is not always at a fixed offset — writers may put other chunks
+     * ahead of it — so walk the chunk list rather than reading a fixed
+     * position, which yielded garbage and left the rate unset.
      */
     private function wavSampleRate(string $binary): ?int
     {
-        if (strlen($binary) < 28) {
-            return null;
+        $length = strlen($binary);
+        $offset = 12; // past "RIFF", size, "WAVE"
+
+        while ($offset + 8 <= $length) {
+            $id = substr($binary, $offset, 4);
+            $size = unpack('V', substr($binary, $offset + 4, 4))[1] ?? 0;
+
+            if ($id === 'fmt ' && $offset + 12 <= $length) {
+                $rate = unpack('V', substr($binary, $offset + 12, 4))[1] ?? 0;
+
+                return $rate >= 8000 && $rate <= 48000 ? $rate : null;
+            }
+
+            if ($size <= 0) {
+                break;
+            }
+
+            // Chunks are word-aligned, so an odd size carries a pad byte.
+            $offset += 8 + $size + ($size % 2);
         }
 
-        $rate = unpack('V', substr($binary, 24, 4))[1] ?? 0;
-
-        return $rate >= 8000 && $rate <= 48000 ? $rate : null;
+        return null;
     }
 
     private function googleAccessToken(): string
