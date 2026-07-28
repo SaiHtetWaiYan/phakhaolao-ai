@@ -29,9 +29,12 @@ class TtsController extends Controller
             abort(422, 'No text to speak.');
         }
 
+        $voice = $this->googleVoice($text);
+
         // Cache identical text on disk so repeated/replayed sentences are instant
-        // and don't re-bill the TTS provider.
-        $cacheFile = storage_path('app/tts-cache/'.md5(config('tts.provider').'|'.$text).'.mp3');
+        // and don't re-bill the TTS provider. Keyed by voice as well: the same
+        // sentence read by a different voice is a different recording.
+        $cacheFile = storage_path('app/tts-cache/'.md5(config('tts.provider').'|'.$voice['name'].'|'.$text).'.mp3');
 
         if (is_file($cacheFile) && filesize($cacheFile) > 0) {
             return $this->audioResponse((string) file_get_contents($cacheFile));
@@ -39,7 +42,7 @@ class TtsController extends Controller
 
         $audio = config('tts.provider') === 'edge'
             ? $this->edgeAudio($text)
-            : $this->googleAudio($text);
+            : $this->googleAudio($text, $voice);
 
         if ($audio === '') {
             abort(500, 'Speech synthesis failed.');
@@ -62,24 +65,43 @@ class TtsController extends Controller
     }
 
     /**
-     * Google Gemini-TTS — one generative multilingual voice that reads Lao and
-     * embedded English/scientific names correctly in a single pass.
+     * Pick the voice for this text.
+     *
+     * Gemini-TTS is the only voice Google offers that speaks Lao — the
+     * standard catalogue lists none for lo-LA — but it is generative and
+     * around ten times slower than a standard voice on the same sentence.
+     * So it is used only when the text actually contains Lao script.
+     *
+     * @return array{languageCode: string, name: string, modelName?: string}
      */
-    private function googleAudio(string $text): string
+    private function googleVoice(string $text): array
     {
         $config = config('tts.google');
-        $languageCode = preg_match('/[\x{0E80}-\x{0EFF}]/u', $text) === 1 ? 'lo-LA' : 'en-US';
 
+        if (preg_match('/[\x{0E80}-\x{0EFF}]/u', $text) === 1) {
+            return [
+                'languageCode' => 'lo-LA',
+                'name' => $config['voice'],
+                'modelName' => $config['model'],
+            ];
+        }
+
+        return ['languageCode' => 'en-US', 'name' => $config['english_voice']];
+    }
+
+    /**
+     * Synthesize with the chosen Google voice.
+     *
+     * @param  array{languageCode: string, name: string, modelName?: string}  $voice
+     */
+    private function googleAudio(string $text, array $voice): string
+    {
         try {
             $response = Http::withToken($this->googleAccessToken())
                 ->timeout(60)
                 ->post('https://texttospeech.googleapis.com/v1/text:synthesize', [
                     'input' => ['text' => $text],
-                    'voice' => [
-                        'languageCode' => $languageCode,
-                        'name' => $config['voice'],
-                        'modelName' => $config['model'],
-                    ],
+                    'voice' => $voice,
                     'audioConfig' => ['audioEncoding' => 'MP3'],
                 ]);
         } catch (\Throwable $e) {
