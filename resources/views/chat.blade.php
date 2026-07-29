@@ -492,10 +492,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         syncThemeToggleIcons();
 
-        // Two frames: one for the new colours to paint, one to release.
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => root.classList.remove('pk-theme-switching'));
-        });
+        // Two frames: one for the new colours to paint, one to release. The
+        // timer is the backstop — a hidden tab never paints, so the frames
+        // would never come and transitions would stay dead for good.
+        const release = () => root.classList.remove('pk-theme-switching');
+
+        requestAnimationFrame(() => requestAnimationFrame(release));
+        setTimeout(release, 120);
     }
 
     syncThemeToggleIcons();
