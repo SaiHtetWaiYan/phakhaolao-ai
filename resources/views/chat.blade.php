@@ -147,15 +147,15 @@
         <div id="messages" class="flex-1 overflow-y-auto scroll-smooth pt-14 pb-4">
             <div class="max-w-3xl mx-auto flex flex-col gap-6 px-4 py-8" id="messages-container">
                 {{-- Welcome State --}}
-                <div id="welcome-message" class="flex flex-col items-center justify-center py-12 md:py-20 text-center animate-fade-in-up" style="{{ !empty($messages) ? 'display: none;' : '' }}">
-                    <div class="mb-8">
-                        <img src="{{ asset('images/logo.webp') }}" alt="PhaKhaoLao AI" class="h-16 md:h-20 w-auto dark:filter-[invert(1)_hue-rotate(180deg)]">
+                <div id="welcome-message" class="flex flex-col items-center justify-center py-4 md:py-6 text-center animate-fade-in-up" style="{{ !empty($messages) ? 'display: none;' : '' }}">
+                    <div class="mb-5">
+                        <img src="{{ asset('images/logo.webp') }}" alt="PhaKhaoLao AI" class="h-14 md:h-16 w-auto dark:filter-[invert(1)_hue-rotate(180deg)]">
                     </div>
                     <h2 class="text-2xl font-bold text-zinc-900 dark:text-white mb-2" data-i18n="welcome_title">Hi, I am PhaKhaoLao AI</h2>
                     <p class="text-zinc-500 dark:text-zinc-400 max-w-md" data-i18n="welcome_subtitle">I answer your questions about Lao agrobiodiversity by looking up relevant information on the Pha Khao Lao knowledge base (species database, library, champions database, multimedia content).</p>
                     {{-- Three suggestions, drawn once per load, so the blank page
                          shows what this can actually be asked. --}}
-                    <div id="starters" class="mt-8 w-full max-w-xl flex flex-col gap-2.5"></div>
+                    <div id="starters" class="mt-6 w-full max-w-xl flex flex-col gap-2"></div>
                 </div>
 
                 {{-- Render Existing Messages --}}
@@ -192,7 +192,7 @@
 Please double-check responses.</p>
                 </div>
             </div>
-            <div class="h-24"></div> {{-- Spacer for bottom input --}} 
+            <div id="composer-spacer" class="h-24 {{ empty($messages) ? 'hidden' : '' }}"></div> {{-- Clears the floating composer --}} 
         </div>
 
         {{-- Input Area --}}
@@ -912,6 +912,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function hideWelcome() {
         if (welcomeMessage) welcomeMessage.style.display = 'none';
+        document.getElementById('composer-spacer')?.classList.remove('hidden');
     }
 
     function addUserMessage(text, imageUrl) {
