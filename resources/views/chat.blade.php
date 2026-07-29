@@ -314,15 +314,41 @@ async function deleteConversation(id) {
         });
 
         if (response.ok) {
+            // Deleting reloads the page, which would wipe a toast raised here,
+            // so leave the news for the page that comes back.
+            sessionStorage.setItem(DELETED_FLAG, '1');
+
             if (id === currentConversationId) {
                 window.location.href = '{{ route("chat") }}';
             } else {
                 window.location.reload();
             }
+
+            return;
         }
+
+        pkToast(I18N[interfaceLang()].delete_failed, TRASH_SVG);
     } catch (e) {
         console.error('Delete failed', e);
+        pkToast(I18N[interfaceLang()].delete_failed, TRASH_SVG);
     }
+}
+
+const DELETED_FLAG = 'pkl_conversation_deleted';
+const TRASH_SVG = '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16"></path></svg>';
+
+/** A pill that drops in below the header to report what just happened. */
+function pkToast(message, icon) {
+    document.getElementById('pk-toast')?.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'pk-toast';
+    toast.className = 'pk-toast fixed left-1/2 -translate-x-1/2 top-20 z-50 flex items-center gap-3 px-5 py-3 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-800 dark:text-zinc-100 shadow-lg';
+    toast.innerHTML = `${icon || ''}<span></span>`;
+    toast.querySelector('span').textContent = message;
+
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 function deleteCurrentConversation() {
@@ -332,6 +358,11 @@ function deleteCurrentConversation() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    if (sessionStorage.getItem(DELETED_FLAG)) {
+        sessionStorage.removeItem(DELETED_FLAG);
+        pkToast(I18N[interfaceLang()].deleted, TRASH_SVG);
+    }
+
     const form = document.getElementById('chat-form');
     const input = document.getElementById('message-input');
     const sendBtn = document.getElementById('send-btn');
@@ -433,6 +464,8 @@ document.addEventListener('DOMContentLoaded', function () {
             delete_body: 'This will permanently delete this conversation and all messages.',
             cancel: 'Cancel',
             delete: 'Delete',
+            deleted: 'Conversation deleted',
+            delete_failed: 'Could not delete that chat.',
             search_chats: 'Search chats',
             date_today: 'TODAY',
             date_last_7: 'LAST 7 DAYS',
@@ -474,6 +507,8 @@ document.addEventListener('DOMContentLoaded', function () {
             delete_body: 'ນີ້ຈະລຶບການສົນທະນານີ້ ແລະ ຂໍ້ຄວາມທັງໝົດຢ່າງຖາວອນ.',
             cancel: 'ຍົກເລີກ',
             delete: 'ລຶບ',
+            deleted: 'ລຶບການສົນທະນາແລ້ວ',
+            delete_failed: 'ບໍ່ສາມາດລຶບການສົນທະນານີ້ໄດ້.',
             search_chats: 'ຄົ້ນຫາການສົນທະນາ',
             date_today: 'ມື້ນີ້',
             date_last_7: '7 ມື້ຜ່ານມາ',
@@ -1914,6 +1949,9 @@ document.addEventListener('DOMContentLoaded', function () {
 .pk-table tbody tr:nth-child(even) { background: #f7f7f0; }
 .dark .pk-table tbody tr:nth-child(even) { background: #1e2119; }
 .pk-table a { overflow-wrap: anywhere; }
+@keyframes pk-toast-in { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.pk-toast { animation: pk-toast-in .22s ease-out; }
+
 /* The mark breathes while a reply is composed. Dots said something was
    happening but nothing about who was doing it. */
 @keyframes pk-breathe {
