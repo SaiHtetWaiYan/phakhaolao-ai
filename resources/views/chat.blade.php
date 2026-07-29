@@ -237,7 +237,7 @@ Please double-check responses.</p>
                         placeholder="Message PhaKhaoLao AI..."
                         data-i18n-ph="placeholder"
                         autocomplete="off"
-                        class="w-full pl-12 pr-24 py-4 bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-sm transition-all text-[15px] placeholder:text-zinc-400"
+                        class="w-full pl-12 pr-24 py-4 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-sm transition-all text-[15px] placeholder:text-zinc-400"
                     >
                     <button
                         type="button"
@@ -2041,6 +2041,16 @@ ol.pk-list { list-style: decimal; }
    to no part of this palette. Drop it, and mark focus with the neutral
    border a shade stronger instead: keyboard users still need to see where
    they are, but nothing here needs colouring in. */
+/* Both states declared together, since a utility class setting the resting
+   border would otherwise fight the focus rule and win. */
+#message-input,
+#chat-search {
+    border-color: #dcdcd0;
+}
+.dark #message-input,
+.dark #chat-search {
+    border-color: #2c3126;
+}
 #message-input:focus,
 #chat-search:focus {
     outline: none;
