@@ -828,7 +828,7 @@ document.addEventListener('DOMContentLoaded', function () {
         wrapper.innerHTML = `
             <div class="w-full">
                 <div class="prose prose-zinc dark:prose-invert max-w-none text-[15px] leading-relaxed">
-                    <div class="typing-indicator flex gap-1 items-center py-2 px-1"><span class="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce"></span><span class="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce delay-100"></span><span class="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce delay-200"></span></div>
+                    <div class="typing-indicator py-2 px-1"><img src="{{ asset('favicon-192.png') }}" alt="" class="pk-thinking w-7 h-7"></div>
                 </div>
             </div>`;
         messagesContainer.appendChild(wrapper);
@@ -1888,6 +1888,17 @@ document.addEventListener('DOMContentLoaded', function () {
 .pk-table tbody tr:nth-child(even) { background: #f7f7f0; }
 .dark .pk-table tbody tr:nth-child(even) { background: #1e2119; }
 .pk-table a { overflow-wrap: anywhere; }
+/* The mark breathes while a reply is composed. Dots said something was
+   happening but nothing about who was doing it. */
+@keyframes pk-breathe {
+    0%, 100% { opacity: .35; transform: scale(.88); }
+    50% { opacity: 1; transform: scale(1); }
+}
+.pk-thinking { animation: pk-breathe 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+    .pk-thinking { animation: none; opacity: .7; }
+}
+
 /* Lists, for the same reason as the tables above: built at runtime. */
 .pk-list { margin: 0.5rem 0; padding-left: 1.5rem; }
 .pk-list li { margin: 0.15rem 0; }
