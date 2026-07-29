@@ -149,8 +149,8 @@
                     <div class="mb-8">
                         <img src="{{ asset('images/logo.webp') }}" alt="PhaKhaoLao AI" class="h-16 md:h-20 w-auto dark:filter-[invert(1)_hue-rotate(180deg)]">
                     </div>
-                    <h2 class="text-2xl font-bold text-zinc-900 dark:text-white mb-2" data-i18n="welcome_title">How can I help you today?</h2>
-                    <p class="text-zinc-500 dark:text-zinc-400 max-w-md" data-i18n="welcome_subtitle">Ask about Laos plants, animals, uses, habitats, and local species data from the PhaKhaoLao knowledge base.</p>
+                    <h2 class="text-2xl font-bold text-zinc-900 dark:text-white mb-2" data-i18n="welcome_title">Hi, I am PhaKhaoLao AI</h2>
+                    <p class="text-zinc-500 dark:text-zinc-400 max-w-md" data-i18n="welcome_subtitle">I answer your questions about Lao agrobiodiversity by looking up relevant information on the Pha Khao Lao knowledge base (species database, library, champions database, multimedia content).</p>
                     {{-- Three suggestions, drawn once per load, so the blank page
                          shows what this can actually be asked. --}}
                     <div id="starters" class="mt-8 w-full max-w-xl flex flex-col gap-2.5"></div>
@@ -426,8 +426,8 @@ document.addEventListener('DOMContentLoaded', function () {
             new_chat: 'New Chat',
             recent: 'Recent',
             switch_theme: 'Switch Theme',
-            welcome_title: 'How can I help you today?',
-            welcome_subtitle: 'Ask about Laos plants, animals, uses, habitats, and local species data from the PhaKhaoLao knowledge base.',
+            welcome_title: 'Hi, I am PhaKhaoLao AI',
+            welcome_subtitle: 'I answer your questions about Lao agrobiodiversity by looking up relevant information on the Pha Khao Lao knowledge base (species database, library, champions database, multimedia content).',
             placeholder: 'Message PhaKhaoLao AI...',
             disclaimer: 'PhaKhaoLao AI can make mistakes.\nPlease double-check responses.',
             delete_title: 'Delete conversation?',
@@ -467,8 +467,8 @@ document.addEventListener('DOMContentLoaded', function () {
             new_chat: 'ສ້າງການສົນທະນາໃໝ່',
             recent: 'ຫຼ້າສຸດ',
             switch_theme: 'ສະຫຼັບຮູບແບບ',
-            welcome_title: 'ມື້ນີ້ຂ້ອຍຊ່ວຍຫຍັງທ່ານໄດ້ແດ່?',
-            welcome_subtitle: 'ຖາມກ່ຽວກັບພືດ, ສັດ, ການນຳໃຊ້, ຖິ່ນທີ່ຢູ່ ແລະ ຂໍ້ມູນຊະນິດພັນທ້ອງຖິ່ນຂອງລາວ ຈາກຖານຄວາມຮູ້ PhaKhaoLao.',
+            welcome_title: 'ສະບາຍດີ, ຂ້ອຍແມ່ນ PhaKhaoLao AI',
+            welcome_subtitle: 'ຂ້ອຍຕອບຄຳຖາມກ່ຽວກັບຊີວະນາໆພັນກະສິກຳລາວ ໂດຍຄົ້ນຫາຂໍ້ມູນທີ່ກ່ຽວຂ້ອງ ຈາກຖານຄວາມຮູ້ Pha Khao Lao (ຖານຂໍ້ມູນຊະນິດພັນ, ຫ້ອງສະໝຸດ, ຖານຂໍ້ມູນຜູ້ນຳ, ສື່ມັນຕິມີເດຍ).',
             placeholder: 'ພິມຂໍ້ຄວາມຫາ PhaKhaoLao AI...',
             disclaimer: 'PhaKhaoLao AI ອາດຜິດພາດໄດ້\nກະລຸນາກວດສອບຄຳຕອບຄືນ.',
             delete_title: 'ລຶບການສົນທະນາ?',
