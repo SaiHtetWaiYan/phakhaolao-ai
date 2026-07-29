@@ -44,7 +44,7 @@
         </div>
         <div class="flex-1 overflow-y-auto px-4 py-2 space-y-1 custom-scrollbar" id="chat-history">
             @foreach($conversations as $conv)
-                <div class="js-conv group relative flex items-center" data-updated="{{ optional($conv->updated_at)->toIso8601String() }}" data-title="{{ Str::lower($conv->title) }}">
+                <div class="js-conv group relative flex items-center" data-updated="{{ optional($conv->updated_at)->toIso8601String() }}" data-title="{{ Str::lower($conv->title) }}" data-title-full="{{ $conv->title }}">
                     <a href="{{ route('chat', $conv->id) }}" 
                        class="flex-1 flex items-center pl-3 pr-10 py-2 text-sm text-left {{ (isset($currentConversation) && $currentConversation->id === $conv->id) ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white' : 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800' }} rounded-md transition-colors min-w-0">
                         <span class="truncate block min-w-0">{{ Str::limit($conv->title, 18) }}</span>
@@ -271,8 +271,7 @@ Please double-check responses.</p>
 
 <div id="delete-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 px-4">
     <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-zinc-900">
-        <h3 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100" data-i18n="delete_title">Delete conversation?</h3>
-        <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300" data-i18n="delete_body">This will permanently delete this conversation and all messages.</p>
+        <p id="delete-modal-question" class="text-base leading-relaxed text-zinc-900 dark:text-zinc-100">Are you sure you want to delete this chat?</p>
         <div class="mt-5 flex items-center justify-end gap-2">
             <button id="delete-modal-cancel" type="button" class="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800" data-i18n="cancel">Cancel</button>
             <button id="delete-modal-confirm" type="button" class="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-500" data-i18n="delete">Delete</button>
@@ -285,14 +284,33 @@ Please double-check responses.</p>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <script>
 let currentConversationId = @json($currentConversation->id ?? null);
+const CURRENT_CONVERSATION_TITLE = @json($currentConversation->title ?? '');
 let pendingDeleteConversationId = null;
 
 function promptDeleteConversation(id, event) {
     if (event) event.preventDefault();
     pendingDeleteConversationId = id;
+
+    askDeleteQuestion(id);
+
     const modal = document.getElementById('delete-modal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+}
+
+/**
+ * Name the chat in the question, so there is no doubt which one is going.
+ * The visible row title is truncated, hence the full one on the row.
+ */
+function askDeleteQuestion(id) {
+    const question = document.getElementById('delete-modal-question');
+    if (!question) return;
+
+    const row = document.querySelector(`.js-conv [href$="/${id}"]`)?.closest('.js-conv');
+    const title = row?.dataset.titleFull || CURRENT_CONVERSATION_TITLE;
+
+    const template = window.pklT?.('delete_confirm');
+    if (template) question.textContent = template.replace('{title}', title || '');
 }
 
 function closeDeleteModal() {
@@ -327,10 +345,10 @@ async function deleteConversation(id) {
             return;
         }
 
-        pkToast(I18N[interfaceLang()].delete_failed, TRASH_SVG);
+        pkToast(window.pklT?.('delete_failed') || 'Could not delete that chat.', TRASH_SVG);
     } catch (e) {
         console.error('Delete failed', e);
-        pkToast(I18N[interfaceLang()].delete_failed, TRASH_SVG);
+        pkToast(window.pklT?.('delete_failed') || 'Could not delete that chat.', TRASH_SVG);
     }
 }
 
@@ -343,7 +361,7 @@ function pkToast(message, icon) {
 
     const toast = document.createElement('div');
     toast.id = 'pk-toast';
-    toast.className = 'pk-toast fixed left-1/2 -translate-x-1/2 top-20 z-50 flex items-center gap-3 px-5 py-3 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-800 dark:text-zinc-100 shadow-lg';
+    toast.className = 'pk-toast fixed right-4 top-20 z-50 flex items-center gap-3 px-5 py-3 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-800 dark:text-zinc-100 shadow-lg';
     toast.innerHTML = `${icon || ''}<span></span>`;
     toast.querySelector('span').textContent = message;
 
@@ -455,8 +473,7 @@ document.addEventListener('DOMContentLoaded', function () {
             welcome_subtitle: 'I answer your questions about Lao agrobiodiversity by looking up relevant information on the Pha Khao Lao knowledge base (species database, library, champions database, multimedia content).',
             placeholder: 'Message PhaKhaoLao AI...',
             disclaimer: 'PhaKhaoLao AI can make mistakes.\nPlease double-check responses.',
-            delete_title: 'Delete conversation?',
-            delete_body: 'This will permanently delete this conversation and all messages.',
+            delete_confirm: 'Are you sure you want to delete "{title}"?',
             cancel: 'Cancel',
             delete: 'Delete',
             deleted: 'Conversation deleted',
@@ -498,8 +515,7 @@ document.addEventListener('DOMContentLoaded', function () {
             welcome_subtitle: 'ຂ້ອຍຕອບຄຳຖາມກ່ຽວກັບຊີວະນາໆພັນກະສິກຳລາວ ໂດຍຄົ້ນຫາຂໍ້ມູນທີ່ກ່ຽວຂ້ອງ ຈາກຖານຄວາມຮູ້ Pha Khao Lao (ຖານຂໍ້ມູນຊະນິດພັນ, ຫ້ອງສະໝຸດ, ຖານຂໍ້ມູນຜູ້ນຳ, ສື່ມັນຕິມີເດຍ).',
             placeholder: 'ພິມຂໍ້ຄວາມຫາ PhaKhaoLao AI...',
             disclaimer: 'PhaKhaoLao AI ອາດຜິດພາດໄດ້\nກະລຸນາກວດສອບຄຳຕອບຄືນ.',
-            delete_title: 'ລຶບການສົນທະນາ?',
-            delete_body: 'ນີ້ຈະລຶບການສົນທະນານີ້ ແລະ ຂໍ້ຄວາມທັງໝົດຢ່າງຖາວອນ.',
+            delete_confirm: 'ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລຶບ "{title}"?',
             cancel: 'ຍົກເລີກ',
             delete: 'ລຶບ',
             deleted: 'ລຶບການສົນທະນາແລ້ວ',
@@ -542,6 +558,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function t(key) {
         return I18N[interfaceLang()][key] || I18N.en[key] || '';
     }
+
+    // The dictionary lives inside this callback, out of reach of the
+    // top-level delete handlers; publish the lookup rather than the object.
+    window.pklT = t;
 
     /**
      * How long ago something happened, in the reader's language.
@@ -707,11 +727,7 @@ document.addEventListener('DOMContentLoaded', function () {
         sessionStorage.removeItem(DELETED_FLAG);
 
         // A courtesy message must never be able to break the page it greets.
-        try {
-            pkToast(I18N[interfaceLang()].deleted, TRASH_SVG);
-        } catch (e) {
-            console.error('Could not show the delete confirmation', e);
-        }
+        pkToast(t('deleted'), TRASH_SVG);
     }
 
     document.getElementById('chat-search')?.addEventListener('input', (event) => {
@@ -1958,7 +1974,7 @@ document.addEventListener('DOMContentLoaded', function () {
 .pk-table tbody tr:nth-child(even) { background: #f7f7f0; }
 .dark .pk-table tbody tr:nth-child(even) { background: #1e2119; }
 .pk-table a { overflow-wrap: anywhere; }
-@keyframes pk-toast-in { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes pk-toast-in { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
 .pk-toast { animation: pk-toast-in .22s ease-out; }
 
 /* The mark breathes while a reply is composed. Dots said something was
