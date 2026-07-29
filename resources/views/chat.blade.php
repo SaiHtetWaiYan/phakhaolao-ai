@@ -46,8 +46,7 @@
             @foreach($conversations as $conv)
                 <div class="js-conv group relative flex items-center" data-updated="{{ optional($conv->updated_at)->toIso8601String() }}" data-title="{{ Str::lower($conv->title) }}">
                     <a href="{{ route('chat', $conv->id) }}" 
-                       class="flex-1 flex items-center gap-3 pl-2 pr-10 py-2 text-sm text-left {{ (isset($currentConversation) && $currentConversation->id === $conv->id) ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white' : 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800' }} rounded-md transition-colors min-w-0">
-                        <svg class="shrink-0 w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                       class="flex-1 flex items-center pl-3 pr-10 py-2 text-sm text-left {{ (isset($currentConversation) && $currentConversation->id === $conv->id) ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white' : 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800' }} rounded-md transition-colors min-w-0">
                         <span class="truncate block min-w-0">{{ Str::limit($conv->title, 18) }}</span>
                     </a>
                     <button onclick="promptDeleteConversation('{{ $conv->id }}', event)" 
@@ -1328,6 +1327,7 @@ document.addEventListener('DOMContentLoaded', function () {
         let items = null;
         let ordered = false;
         let inPre = false;
+        let blankHeld = false;
 
         const flush = () => {
             if (!items) return;
@@ -1336,12 +1336,18 @@ document.addEventListener('DOMContentLoaded', function () {
             items = null;
         };
 
+        const releaseBlank = () => {
+            if (blankHeld) out.push('');
+            blankHeld = false;
+        };
+
         for (const line of html.split('\n')) {
             // A dash opening a line of code is not a bullet.
             if (/<pre[\s>]/.test(line)) inPre = true;
 
             if (inPre) {
                 flush();
+                releaseBlank();
                 out.push(line);
                 if (/<\/pre>/.test(line)) inPre = false;
                 continue;
@@ -1356,14 +1362,34 @@ document.addEventListener('DOMContentLoaded', function () {
                 ordered = isOrdered;
                 items = items || [];
                 items.push((bullet || numbered)[1]);
+                blankHeld = false;
                 continue;
             }
 
+            if (items) {
+                // A blank line may just be spacing between items, so hold it
+                // until the next line says whether the list really ended.
+                if (line.trim() === '') {
+                    blankHeld = true;
+                    continue;
+                }
+
+                // A line running straight on from an item belongs to it — the
+                // species link under each entry, which otherwise cut the list
+                // in two and restarted the numbering at 1.
+                if (!blankHeld) {
+                    items[items.length - 1] += `<br>${line.trim()}`;
+                    continue;
+                }
+            }
+
             flush();
+            releaseBlank();
             out.push(line);
         }
 
         flush();
+        releaseBlank();
 
         return out.join('\n');
     }
