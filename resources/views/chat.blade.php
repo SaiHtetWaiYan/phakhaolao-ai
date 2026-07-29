@@ -237,7 +237,7 @@ Please double-check responses.</p>
                         placeholder="Message PhaKhaoLao AI..."
                         data-i18n-ph="placeholder"
                         autocomplete="off"
-                        class="w-full pl-12 pr-24 py-4 bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-accent-500/10 focus:border-accent-500 transition-all text-[15px] placeholder:text-zinc-400"
+                        class="w-full pl-12 pr-24 py-4 bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-sm transition-all text-[15px] placeholder:text-zinc-400"
                     >
                     <button
                         type="button"
@@ -2036,6 +2036,16 @@ document.addEventListener('DOMContentLoaded', function () {
 .pk-list li { margin: 0.15rem 0; }
 ul.pk-list { list-style: disc; }
 ol.pk-list { list-style: decimal; }
+
+/* The browser's own focus ring is its accent colour — blue — which belongs
+   to no part of this palette. Drop it, and mark focus with the neutral
+   border a shade stronger instead: keyboard users still need to see where
+   they are, but nothing here needs colouring in. */
+#message-input:focus,
+#chat-search:focus {
+    outline: none;
+    border-color: #9a9c8c;
+}
 
 /* Answer-language switch active state (build-independent). */
 .js-lang-opt { color: #7c7e6f; }
