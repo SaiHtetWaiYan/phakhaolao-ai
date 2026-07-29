@@ -2051,8 +2051,12 @@ ol.pk-list { list-style: decimal; }
 .dark #chat-search {
     border-color: #2c3126;
 }
+/* The dark resting rule ties with a bare :focus on specificity, so focus is
+   spelled out for both themes. */
 #message-input:focus,
-#chat-search:focus {
+#chat-search:focus,
+.dark #message-input:focus,
+.dark #chat-search:focus {
     outline: none;
     border-color: #9a9c8c;
 }
