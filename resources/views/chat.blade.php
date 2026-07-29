@@ -47,7 +47,10 @@
                 <div class="js-conv group relative flex items-center" data-updated="{{ optional($conv->updated_at)->toIso8601String() }}" data-title="{{ Str::lower($conv->title) }}" data-title-full="{{ $conv->title }}">
                     <a href="{{ route('chat', $conv->id) }}" 
                        class="flex-1 flex items-center pl-3 pr-10 py-2 text-sm text-left {{ (isset($currentConversation) && $currentConversation->id === $conv->id) ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white' : 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800' }} rounded-md transition-colors min-w-0">
-                        <span class="truncate block min-w-0">{{ Str::limit($conv->title, 18) }}</span>
+                        {{-- Full title: the span already ellipsises what will
+                             not fit, so cutting at 18 characters only threw
+                             away words the sidebar had room for. --}}
+                        <span class="truncate block min-w-0" title="{{ $conv->title }}">{{ $conv->title }}</span>
                     </a>
                     <button onclick="promptDeleteConversation('{{ $conv->id }}', event)" 
                             class="absolute right-1.5 opacity-0 group-hover:opacity-100 p-1.5 text-zinc-400 hover:text-red-500 transition-all">
