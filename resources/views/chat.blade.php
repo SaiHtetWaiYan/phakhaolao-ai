@@ -1085,7 +1085,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function showConversationFooter() {
-        document.getElementById('conversation-footer')?.classList.remove('hidden');
+        const footer = document.getElementById('conversation-footer');
+        if (!footer) return;
+
+        footer.classList.remove('hidden');
+        // New turns append after it, so move it back to the end — a sign-off
+        // stranded mid-thread reads as though the conversation ended there.
+        messagesContainer.appendChild(footer);
     }
 
     function renderExistingAssistantMessages() {
