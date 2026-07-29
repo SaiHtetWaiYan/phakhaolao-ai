@@ -634,8 +634,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /** Restamp every message; "3 minutes ago" goes stale as you read. */
     function refreshTimestamps() {
-        document.querySelectorAll('[data-at]').forEach((el) => {
-            el.textContent = relativeTime(el.dataset.at);
+        document.querySelectorAll('[data-stamp]').forEach((el) => {
+            el.textContent = relativeTime(el.dataset.stamp);
         });
     }
 
@@ -1061,8 +1061,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function timestampEl(iso) {
         const stamp = document.createElement('span');
         stamp.className = 'ml-1 text-xs text-zinc-400 dark:text-zinc-500';
-        stamp.dataset.at = iso || new Date().toISOString();
-        stamp.textContent = relativeTime(stamp.dataset.at);
+        stamp.dataset.stamp = iso || new Date().toISOString();
+        stamp.textContent = relativeTime(stamp.dataset.stamp);
 
         return stamp;
     }
