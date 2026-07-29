@@ -358,11 +358,6 @@ function deleteCurrentConversation() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    if (sessionStorage.getItem(DELETED_FLAG)) {
-        sessionStorage.removeItem(DELETED_FLAG);
-        pkToast(I18N[interfaceLang()].deleted, TRASH_SVG);
-    }
-
     const form = document.getElementById('chat-form');
     const input = document.getElementById('message-input');
     const sendBtn = document.getElementById('send-btn');
@@ -704,6 +699,20 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
     applyLanguageSwitch();
+
+    // After the translations exist, not before: this runs inside the same
+    // callback that declares them, and reaching for I18N above its
+    // declaration threw, taking the whole page's setup down with it.
+    if (sessionStorage.getItem(DELETED_FLAG)) {
+        sessionStorage.removeItem(DELETED_FLAG);
+
+        // A courtesy message must never be able to break the page it greets.
+        try {
+            pkToast(I18N[interfaceLang()].deleted, TRASH_SVG);
+        } catch (e) {
+            console.error('Could not show the delete confirmation', e);
+        }
+    }
 
     document.getElementById('chat-search')?.addEventListener('input', (event) => {
         filterConversations(event.target.value);
