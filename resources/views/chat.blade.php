@@ -2041,24 +2041,16 @@ ol.pk-list { list-style: decimal; }
    to no part of this palette. Drop it, and mark focus with the neutral
    border a shade stronger instead: keyboard users still need to see where
    they are, but nothing here needs colouring in. */
-/* Both states declared together, since a utility class setting the resting
-   border would otherwise fight the focus rule and win. */
-#message-input,
-#chat-search {
-    border-color: #dcdcd0;
-}
-.dark #message-input,
-.dark #chat-search {
-    border-color: #2c3126;
-}
-/* The dark resting rule ties with a bare :focus on specificity, so focus is
-   spelled out for both themes. */
+/* The browser's own focus ring is its accent colour — blue — which belongs
+   to no part of this palette.
+   These inputs carry no border at all (the reset sets border-width to 0, and
+   the old classes only ever set a colour), so what reads as one is the
+   shadow. Mark focus by deepening that shadow into a neutral ring: visible
+   for anyone tabbing through, and no colour anywhere. */
 #message-input:focus,
-#chat-search:focus,
-.dark #message-input:focus,
-.dark #chat-search:focus {
+#chat-search:focus {
     outline: none;
-    border-color: #9a9c8c;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .1), 0 0 0 2px rgba(154, 156, 140, .5);
 }
 
 /* Answer-language switch active state (build-independent). */
