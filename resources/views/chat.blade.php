@@ -60,7 +60,7 @@
                 <span class="text-sm font-medium" data-i18n="switch_theme">Switch Theme</span>
             </button>
             <div class="flex items-center gap-3 px-2 py-2">
-                <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-medium text-xs">
+                <div class="w-8 h-8 rounded-full bg-accent-100 dark:bg-accent-900 flex items-center justify-center text-accent-600 dark:text-accent-400 font-medium text-xs">
                     US
                 </div>
                 <div class="flex-1 text-left">
@@ -73,9 +73,9 @@
     {{-- Main Chat Area --}}
     <main id="chat-container" class="flex-1 flex flex-col h-full relative overflow-hidden">
         {{-- Drag & Drop Overlay --}}
-        <div id="drop-overlay" class="absolute inset-0 z-50 bg-indigo-600/10 backdrop-blur-[2px] border-2 border-dashed border-indigo-500 rounded-3xl m-4 hidden flex-col items-center justify-center transition-all duration-300 pointer-events-none">
+        <div id="drop-overlay" class="absolute inset-0 z-50 bg-accent-600/10 backdrop-blur-[2px] border-2 border-dashed border-accent-500 rounded-3xl m-4 hidden flex-col items-center justify-center transition-all duration-300 pointer-events-none">
             <div class="bg-white dark:bg-zinc-900 px-8 py-6 rounded-3xl shadow-2xl flex flex-col items-center gap-4 transform scale-110">
-                <div class="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <div class="w-16 h-16 bg-accent-100 dark:bg-accent-900/50 rounded-2xl flex items-center justify-center text-accent-600 dark:text-accent-400">
                     <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                     </svg>
@@ -110,13 +110,9 @@
 
         {{-- Top Bar (Desktop) --}}
         <header class="hidden md:flex shrink-0 h-14 border-b border-zinc-100 dark:border-zinc-800/50 items-center justify-between px-6 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm z-10 absolute top-0 left-0 right-0">
-            <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Model:</span>
-                <button class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm font-semibold text-zinc-800 dark:text-zinc-200 transition-colors">
-                    <span>Phakhaolao 1.0</span>
-                    <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                </button>
-            </div>
+            {{-- Nothing on the left: the model picker here offered a chevron
+                 and a menu that never existed, and there is only one model. --}}
+            <div></div>
             <div class="flex items-center gap-3">
                 <div class="js-lang-switch flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5 text-xs font-semibold" title="Answer language">
                     <button type="button" data-lang="auto" class="js-lang-opt px-2.5 py-1 rounded-md transition-colors">Auto</button>
@@ -211,7 +207,7 @@
                         type="button"
                         id="upload-btn"
                         title="Upload image"
-                        class="absolute left-2 top-1/2 -translate-y-1/2 p-2.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        class="absolute left-2 top-1/2 -translate-y-1/2 p-2.5 text-zinc-400 hover:text-accent-600 dark:hover:text-accent-400 transition-colors rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -224,13 +220,13 @@
                         placeholder="Message Phakhaolao AI..."
                         data-i18n-ph="placeholder"
                         autocomplete="off"
-                        class="w-full pl-12 pr-24 py-4 bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-[15px] placeholder:text-zinc-400"
+                        class="w-full pl-12 pr-24 py-4 bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-accent-500/10 focus:border-accent-500 transition-all text-[15px] placeholder:text-zinc-400"
                     >
                     <button
                         type="button"
                         id="mic-btn"
                         title="Voice input"
-                        class="absolute right-12 top-1/2 -translate-y-1/2 p-2.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        class="absolute right-12 top-1/2 -translate-y-1/2 p-2.5 text-zinc-400 hover:text-accent-600 dark:hover:text-accent-400 transition-colors rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-14 0m7 7v3m-4 0h8M12 1a3 3 0 00-3 3v6a3 3 0 006 0V4a3 3 0 00-3-3z"></path>
@@ -239,7 +235,7 @@
                     <button
                         type="submit"
                         id="send-btn"
-                        class="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-zinc-900 dark:bg-indigo-600 text-white rounded-xl hover:bg-zinc-700 dark:hover:bg-indigo-500 disabled:opacity-30 disabled:hover:bg-zinc-900 dark:disabled:hover:bg-indigo-600 transition-all shadow-sm group"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-accent-500 text-accent-900 rounded-xl hover:bg-accent-600 disabled:opacity-30 disabled:hover:bg-accent-500 transition-all shadow-sm group"
                         disabled
                     >
                         <svg class="js-send-icon w-5 h-5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1054,6 +1050,58 @@ document.addEventListener('DOMContentLoaded', function () {
         return out.join('\n');
     }
 
+    /**
+     * Turn "- item" and "1. item" runs into real lists.
+     *
+     * Without this every bullet stayed a literal dash on its own line, which
+     * is how a tidy answer arrived looking like plain text on the web while
+     * the app rendered it properly.
+     */
+    function formatLists(html) {
+        const out = [];
+        let items = null;
+        let ordered = false;
+        let inPre = false;
+
+        const flush = () => {
+            if (!items) return;
+            const tag = ordered ? 'ol' : 'ul';
+            out.push(`<${tag} class="pk-list">${items.map((item) => `<li>${item}</li>`).join('')}</${tag}>`);
+            items = null;
+        };
+
+        for (const line of html.split('\n')) {
+            // A dash opening a line of code is not a bullet.
+            if (/<pre[\s>]/.test(line)) inPre = true;
+
+            if (inPre) {
+                flush();
+                out.push(line);
+                if (/<\/pre>/.test(line)) inPre = false;
+                continue;
+            }
+
+            const bullet = line.match(/^\s{0,3}[-*+]\s+(.+)$/);
+            const numbered = line.match(/^\s{0,3}\d+[.)]\s+(.+)$/);
+
+            if (bullet || numbered) {
+                const isOrdered = Boolean(numbered);
+                if (items && ordered !== isOrdered) flush();
+                ordered = isOrdered;
+                items = items || [];
+                items.push((bullet || numbered)[1]);
+                continue;
+            }
+
+            flush();
+            out.push(line);
+        }
+
+        flush();
+
+        return out.join('\n');
+    }
+
     function formatText(text) {
         text = text.replace(/https:\/\/species\.phakhaolao\.la\/species\/(\d+)/gi, 'https://species.phakhaolao.la/search/specie_details/$1');
         let html = escapeHtml(text);
@@ -1063,13 +1111,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const clean = String(url).replace(/[.,;:!?)]+$/g, '');
             return `${prefix}<img src="${clean}" alt="species image" loading="lazy" referrerpolicy="no-referrer" class="pk-chat-img" data-fallback-img />`;
         });
-        html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 underline">$1</a>');
+        html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-accent-600 dark:text-accent-400 underline">$1</a>');
         html = html.replace(/(^|[\s>])(https?:\/\/[^\s<>"']+)(?=$|[\s<])/gmi, (full, prefix, url) => {
             const clean = String(url).replace(/[.,;:!?)]+$/g, '');
             if (/\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(clean)) {
                 return full;
             }
-            return `${prefix}<a href="${clean}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 underline">${clean}</a>`;
+            return `${prefix}<a href="${clean}" target="_blank" rel="noopener noreferrer" class="text-accent-600 dark:text-accent-400 underline">${clean}</a>`;
         });
         html = html.replace(/^\s{0,3}#{4,6}\s+(.+)$/gm, '<div class="font-semibold mt-3 mb-1">$1</div>');
         html = html.replace(/^\s{0,3}###\s+(.+)$/gm, '<div class="font-semibold text-base mt-3 mb-1">$1</div>');
@@ -1081,6 +1129,7 @@ document.addEventListener('DOMContentLoaded', function () {
         html = html.replace(/(^|[^*\w])\*(?!\s)([^*\n]+?)(?<!\s)\*(?!\*)/g, '$1<em>$2</em>');
         html = html.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded-md bg-zinc-200 dark:bg-zinc-700 text-sm font-mono">$1</code>');
         html = formatTables(html);
+        html = formatLists(html);
         html = html.replace(/\n/g, '<br>');
         // Group consecutive images into a compact thumbnail grid (single image stays medium).
         html = html.replace(/(?:<img[^>]*class="pk-chat-img[^>]*>(?:\s*<br>\s*)?)+/g, (run) => {
@@ -1337,20 +1386,20 @@ document.addEventListener('DOMContentLoaded', function () {
             const height = heights[r];
 
             if (r === 0) {
-                ctx.fillStyle = '#f4f4f5';
+                ctx.fillStyle = '#efefe6';
                 ctx.fillRect(0, y, totalWidth, height);
             } else if (r % 2 === 0) {
-                ctx.fillStyle = '#fafafa';
+                ctx.fillStyle = '#f7f7f0';
                 ctx.fillRect(0, y, totalWidth, height);
             }
 
             let x = 0;
             cells.forEach((lines, c) => {
-                ctx.strokeStyle = '#e4e4e7';
+                ctx.strokeStyle = '#dcdcd0';
                 ctx.lineWidth = 1;
                 ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, widths[c], height);
 
-                ctx.fillStyle = r === 0 ? '#27272a' : '#3f3f46';
+                ctx.fillStyle = r === 0 ? '#22261d' : '#2c3126';
                 ctx.font = (r === 0 || c === 0) ? BOLD : FONT;
                 lines.forEach((line, index) => {
                     ctx.fillText(line, x + PAD, y + PAD + index * LINE);
@@ -1387,7 +1436,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 anchor.href = url;
                 anchor.target = '_blank';
                 anchor.rel = 'noopener noreferrer';
-                anchor.className = 'flex items-center gap-2 p-3 text-sm text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400';
+                anchor.className = 'flex items-center gap-2 p-3 text-sm text-zinc-500 dark:text-zinc-400 hover:text-accent-600 dark:hover:text-accent-400';
                 anchor.textContent = 'Image unavailable';
                 wrapper.appendChild(anchor);
             });
@@ -1496,8 +1545,8 @@ document.addEventListener('DOMContentLoaded', function () {
 @keyframes fade-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e4e4e7; border-radius: 20px; }
-.dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3f3f46; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background-color: #dcdcd0; border-radius: 20px; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #2c3126; }
 /* Break long URLs/words so a message never forces horizontal scroll. */
 .prose, .prose a, .whitespace-pre-wrap { overflow-wrap: anywhere; word-break: break-word; }
 .prose pre { overflow-x: auto; max-width: 100%; }
@@ -1507,12 +1556,12 @@ document.addEventListener('DOMContentLoaded', function () {
 .pk-table-wrap {
     max-width: 100%;
     margin: 0.75rem 0;
-    border: 1px solid #e4e4e7;
+    border: 1px solid #dcdcd0;
     border-radius: 0.5rem;
     overflow: hidden;
     background: #ffffff;
 }
-.dark .pk-table-wrap { border-color: #3f3f46; background: #18181b; }
+.dark .pk-table-wrap { border-color: #2c3126; background: #1a1d16; }
 
 .pk-table-bar {
     display: flex;
@@ -1520,24 +1569,24 @@ document.addEventListener('DOMContentLoaded', function () {
     justify-content: flex-end;
     gap: 0.25rem;
     padding: 0.25rem 0.5rem;
-    background: #fafafa;
-    border-bottom: 1px solid #e4e4e7;
+    background: #f7f7f0;
+    border-bottom: 1px solid #dcdcd0;
 }
-.dark .pk-table-bar { background: #27272a; border-bottom-color: #3f3f46; }
+.dark .pk-table-bar { background: #22261d; border-bottom-color: #2c3126; }
 
 .pk-table-btn {
     font-size: 0.75rem;
     line-height: 1rem;
     padding: 0.25rem 0.5rem;
     border-radius: 0.375rem;
-    color: #52525b;
+    color: #5e6153;
     background: transparent;
     transition: background-color .15s, color .15s;
     white-space: nowrap;
 }
-.pk-table-btn:hover { background: #e4e4e7; color: #18181b; }
-.dark .pk-table-btn { color: #a1a1aa; }
-.dark .pk-table-btn:hover { background: #3f3f46; color: #fafafa; }
+.pk-table-btn:hover { background: #dcdcd0; color: #1a1d16; }
+.dark .pk-table-btn { color: #9a9c8c; }
+.dark .pk-table-btn:hover { background: #2c3126; color: #f7f7f0; }
 
 .pk-table-scroll { overflow-x: auto; }
 
@@ -1559,24 +1608,30 @@ document.addEventListener('DOMContentLoaded', function () {
 .pk-table th:first-child, .pk-table td:first-child { min-width: 10rem; }
 .pk-table th {
     font-weight: 600;
-    color: #3f3f46;
-    background: #f4f4f5;
-    border-bottom: 1px solid #d4d4d8;
+    color: #2c3126;
+    background: #efefe6;
+    border-bottom: 1px solid #c8c9bc;
 }
-.dark .pk-table th { color: #e4e4e7; background: #27272a; border-bottom-color: #52525b; }
-.pk-table td { color: #27272a; border-top: 1px solid #e4e4e7; }
-.dark .pk-table td { color: #d4d4d8; border-top-color: #3f3f46; }
-.pk-table td:first-child { font-weight: 500; color: #18181b; }
-.dark .pk-table td:first-child { color: #fafafa; }
-.pk-table th + th, .pk-table td + td { border-left: 1px solid #e4e4e7; }
-.dark .pk-table th + th, .dark .pk-table td + td { border-left-color: #3f3f46; }
-.pk-table tbody tr:nth-child(even) { background: #fafafa; }
-.dark .pk-table tbody tr:nth-child(even) { background: #212124; }
+.dark .pk-table th { color: #dcdcd0; background: #22261d; border-bottom-color: #5e6153; }
+.pk-table td { color: #22261d; border-top: 1px solid #dcdcd0; }
+.dark .pk-table td { color: #c8c9bc; border-top-color: #2c3126; }
+.pk-table td:first-child { font-weight: 500; color: #1a1d16; }
+.dark .pk-table td:first-child { color: #f7f7f0; }
+.pk-table th + th, .pk-table td + td { border-left: 1px solid #dcdcd0; }
+.dark .pk-table th + th, .dark .pk-table td + td { border-left-color: #2c3126; }
+.pk-table tbody tr:nth-child(even) { background: #f7f7f0; }
+.dark .pk-table tbody tr:nth-child(even) { background: #1e2119; }
 .pk-table a { overflow-wrap: anywhere; }
+/* Lists, for the same reason as the tables above: built at runtime. */
+.pk-list { margin: 0.5rem 0; padding-left: 1.5rem; }
+.pk-list li { margin: 0.15rem 0; }
+ul.pk-list { list-style: disc; }
+ol.pk-list { list-style: decimal; }
+
 /* Answer-language switch active state (build-independent). */
-.js-lang-opt { color: #71717a; }
-.js-lang-opt.is-active { background: #ffffff; color: #18181b; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-.dark .js-lang-opt { color: #a1a1aa; }
-.dark .js-lang-opt.is-active { background: #3f3f46; color: #ffffff; }
+.js-lang-opt { color: #7c7e6f; }
+.js-lang-opt.is-active { background: #ffffff; color: #1a1d16; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.dark .js-lang-opt { color: #9a9c8c; }
+.dark .js-lang-opt.is-active { background: #2c3126; color: #ffffff; }
 </style>
 @endsection

@@ -9,4 +9,28 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /*
+     * The neutrals are warm, not grey: the same olive-tinted near-black and
+     * cream the mobile app uses, so the two read as one product. Redefining
+     * the ramp rather than rewriting every class keeps the markup untouched.
+     */
+    --color-zinc-50: #f7f7f0;
+    --color-zinc-100: #efefe6;
+    --color-zinc-200: #dcdcd0;
+    --color-zinc-300: #c8c9bc;
+    --color-zinc-400: #9a9c8c;
+    --color-zinc-500: #7c7e6f;
+    --color-zinc-600: #5e6153;
+    --color-zinc-700: #2c3126;
+    --color-zinc-800: #22261d;
+    --color-zinc-900: #1a1d16;
+    --color-zinc-950: #121410;
+
+    /* Amber carries every primary action, as it does in the app. */
+    --color-accent-100: #f6e7cc;
+    --color-accent-400: #e8b45f;
+    --color-accent-500: #e0a33e;
+    --color-accent-600: #c98b28;
+    --color-accent-900: #241a05;
 }
