@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>Phakhaolao AI</title>
+        <title>PhaKhaoLao AI</title>
 
         <!-- Favicon -->
         <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
@@ -35,7 +35,7 @@
         <header class="w-full lg:max-w-4xl max-w-[335px] text-sm mb-6 flex justify-between items-center">
             <div class="flex items-center gap-2">
                 <img src="{{ asset('images/logo.webp') }}" alt="Logo" class="h-6 w-auto dark:filter-[invert(1)_hue-rotate(180deg)]">
-                <span class="font-bold text-zinc-800 dark:text-zinc-100 tracking-tight">Phakhaolao AI</span>
+                <span class="font-bold text-zinc-800 dark:text-zinc-100 tracking-tight">PhaKhaoLao AI</span>
             </div>
             <nav class="flex items-center gap-4">
                 <button id="theme-toggle" class="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
@@ -86,7 +86,7 @@
                         <div class="absolute -inset-4 bg-white/20 dark:bg-white/5 blur-2xl rounded-full"></div>
                         <img src="{{ asset('images/logo.webp') }}" alt="Logo" class="relative w-full h-auto max-w-[240px] drop-shadow-2xl dark:filter-[invert(1)_hue-rotate(180deg)]">
                     </div>
-                    <span class="text-4xl font-black text-zinc-900 dark:text-white tracking-tighter">Phakhaolao AI</span>
+                    <span class="text-4xl font-black text-zinc-900 dark:text-white tracking-tighter">PhaKhaoLao AI</span>
                     <div class="absolute inset-0 rounded-t-lg lg:rounded-t-none lg:rounded-r-lg shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.1)] dark:shadow-[inset_0px_0px_0px_1px_rgba(255,255,255,0.05)]"></div>
                 </div>
             </main>

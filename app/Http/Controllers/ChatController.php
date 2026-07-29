@@ -129,6 +129,9 @@ class ChatController extends Controller
                 'role' => $m->role,
                 'content' => $m->content,
                 'meta' => $m->meta ?? [],
+                // The browser turns this into "23 minutes ago" in its own
+                // timezone; the server has no idea where the reader is.
+                'at' => optional($m->created_at)->toIso8601String(),
             ])->toArray();
         }
 

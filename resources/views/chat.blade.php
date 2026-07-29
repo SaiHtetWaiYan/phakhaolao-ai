@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Phakhaolao AI')
+@section('title', 'PhaKhaoLao AI')
 
 @section('content')
 <div id="chat-app" class="flex h-full bg-white dark:bg-zinc-950">
@@ -33,10 +33,18 @@
         </div>
 
         {{-- History List --}}
-        <div class="flex-1 overflow-y-auto px-4 py-2 space-y-1 custom-scrollbar">
-            <div class="px-2 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider" data-i18n="recent">Recent</div>
+        <div class="px-4 pt-2">
+            <input
+                type="search"
+                id="chat-search"
+                data-i18n-ph="search_chats"
+                placeholder="Search chats"
+                class="w-full px-3 py-2 text-sm rounded-md bg-zinc-100 dark:bg-zinc-800 border border-transparent focus:border-accent-500 focus:outline-none text-zinc-700 dark:text-zinc-200 placeholder:text-zinc-400"
+            >
+        </div>
+        <div class="flex-1 overflow-y-auto px-4 py-2 space-y-1 custom-scrollbar" id="chat-history">
             @foreach($conversations as $conv)
-                <div class="group relative flex items-center">
+                <div class="js-conv group relative flex items-center" data-updated="{{ optional($conv->updated_at)->toIso8601String() }}" data-title="{{ Str::lower($conv->title) }}">
                     <a href="{{ route('chat', $conv->id) }}" 
                        class="flex-1 flex items-center gap-3 pl-2 pr-10 py-2 text-sm text-left {{ (isset($currentConversation) && $currentConversation->id === $conv->id) ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white' : 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800' }} rounded-md transition-colors min-w-0">
                         <svg class="shrink-0 w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
@@ -139,17 +147,20 @@
                 {{-- Welcome State --}}
                 <div id="welcome-message" class="flex flex-col items-center justify-center py-12 md:py-20 text-center animate-fade-in-up" style="{{ !empty($messages) ? 'display: none;' : '' }}">
                     <div class="mb-8">
-                        <img src="{{ asset('images/logo.webp') }}" alt="Phakhaolao AI" class="h-16 md:h-20 w-auto dark:filter-[invert(1)_hue-rotate(180deg)]">
+                        <img src="{{ asset('images/logo.webp') }}" alt="PhaKhaoLao AI" class="h-16 md:h-20 w-auto dark:filter-[invert(1)_hue-rotate(180deg)]">
                     </div>
                     <h2 class="text-2xl font-bold text-zinc-900 dark:text-white mb-2" data-i18n="welcome_title">How can I help you today?</h2>
                     <p class="text-zinc-500 dark:text-zinc-400 max-w-md" data-i18n="welcome_subtitle">Ask about Laos plants, animals, uses, habitats, and local species data from the PhaKhaoLao knowledge base.</p>
+                    {{-- Three suggestions, drawn once per load, so the blank page
+                         shows what this can actually be asked. --}}
+                    <div id="starters" class="mt-8 w-full max-w-xl flex flex-col gap-2.5"></div>
                 </div>
 
                 {{-- Render Existing Messages --}}
                 @if(!empty($messages))
                     @foreach($messages as $msg)
                         @if($msg['role'] === 'user')
-                            <div class="chat-message relative flex justify-end w-full animate-fade-in">
+                            <div class="chat-message js-user-message relative flex flex-col items-end w-full animate-fade-in" data-at="{{ $msg['at'] ?? '' }}">
                                 <div class="max-w-[85%] md:max-w-[75%] px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white text-[15px] leading-relaxed shadow-sm">
                                     @if(!empty($msg['meta']['image_url']))
                                         <div class="mb-2 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -157,16 +168,13 @@
                                         </div>
                                     @endif
                                     @if($msg['content'])
-                                        <div class="px-1 py-0.5 whitespace-pre-wrap [overflow-wrap:anywhere] break-words">{{ $msg['content'] }}</div>
+                                        <div class="js-user-text px-1 py-0.5 whitespace-pre-wrap [overflow-wrap:anywhere] break-words">{{ $msg['content'] }}</div>
                                     @endif
                                 </div>
                             </div>
                         @else
-                            <div class="chat-message relative flex justify-start w-full gap-4 animate-fade-in group">
-                                <div class="shrink-0 w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shadow-sm overflow-hidden">
-                                    <img src="{{ asset('favicon-192.png') }}" alt="AI" class="w-6 h-6">
-                                </div>
-                                <div class="max-w-[85%] md:max-w-[85%]">
+                            <div class="chat-message relative flex justify-start w-full animate-fade-in group" data-at="{{ $msg['at'] ?? '' }}">
+                                <div class="w-full">
                                     <textarea class="hidden js-assistant-raw">{{ $msg['content'] ?? '' }}</textarea>
                                     <div class="prose prose-zinc dark:prose-invert max-w-none text-[15px] leading-relaxed js-assistant-rendered"></div>
                                 </div>
@@ -174,6 +182,13 @@
                         @endif
                     @endforeach
                 @endif
+                {{-- The mark appears once, at the end, rather than beside every
+                     reply, and carries the reminder with it. --}}
+                <div id="conversation-footer" class="flex items-center gap-3 pt-2 {{ empty($messages) ? 'hidden' : '' }}">
+                    <img src="{{ asset('favicon-192.png') }}" alt="" class="w-7 h-7 shrink-0">
+                    <p class="flex-1 text-right text-xs text-zinc-400 dark:text-zinc-500 whitespace-pre-line" data-i18n="disclaimer">PhaKhaoLao AI can make mistakes.
+Please double-check responses.</p>
+                </div>
             </div>
             <div class="h-24"></div> {{-- Spacer for bottom input --}} 
         </div>
@@ -217,7 +232,7 @@
                         type="text"
                         id="message-input"
                         name="message"
-                        placeholder="Message Phakhaolao AI..."
+                        placeholder="Message PhaKhaoLao AI..."
                         data-i18n-ph="placeholder"
                         autocomplete="off"
                         class="w-full pl-12 pr-24 py-4 bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-accent-500/10 focus:border-accent-500 transition-all text-[15px] placeholder:text-zinc-400"
@@ -248,7 +263,7 @@
                     </button>
                 </form>
                 <div class="text-center mt-2">
-                    <p class="text-xs text-zinc-400 dark:text-zinc-500" data-i18n="disclaimer">Phakhaolao AI can make mistakes. Consider checking important information.</p>
+
                 </div>
             </div>
         </footer>
@@ -413,12 +428,40 @@ document.addEventListener('DOMContentLoaded', function () {
             switch_theme: 'Switch Theme',
             welcome_title: 'How can I help you today?',
             welcome_subtitle: 'Ask about Laos plants, animals, uses, habitats, and local species data from the PhaKhaoLao knowledge base.',
-            placeholder: 'Message Phakhaolao AI...',
-            disclaimer: 'Phakhaolao AI can make mistakes. Consider checking important information.',
+            placeholder: 'Message PhaKhaoLao AI...',
+            disclaimer: 'PhaKhaoLao AI can make mistakes.\nPlease double-check responses.',
             delete_title: 'Delete conversation?',
             delete_body: 'This will permanently delete this conversation and all messages.',
             cancel: 'Cancel',
             delete: 'Delete',
+            search_chats: 'Search chats',
+            date_today: 'TODAY',
+            date_last_7: 'LAST 7 DAYS',
+            date_earlier: 'EARLIER',
+            just_now: 'Just now',
+            minute_ago: '1 minute ago',
+            minutes_ago: '{n} minutes ago',
+            hour_ago: '1 hour ago',
+            hours_ago: '{n} hours ago',
+            day_ago: 'Yesterday',
+            days_ago: '{n} days ago',
+            copy: 'Copy',
+            listen: 'Listen',
+            cat_species: 'SPECIES',
+            cat_champions: 'CHAMPIONS',
+            cat_library: 'LIBRARY',
+            cat_stories: 'STORIES',
+            cat_conservation: 'CONSERVATION',
+            starter_plants: 'Which plants are used in Lao cooking?',
+            starter_animals: 'What animals live in Laos?',
+            starter_medicinal: 'Which plants are used as medicine?',
+            starter_birds: 'Which birds are found in Laos?',
+            starter_fish: 'Which fish live in the Mekong?',
+            starter_matrix: 'Compare three ferns in a table',
+            starter_champions: 'How many champions per province?',
+            starter_library: 'What does the library say about agroforestry?',
+            starter_stories: 'Show me stories about farming',
+            starter_invasive: 'Which species are invasive in Laos?',
         },
         lo: {
             new_chat: 'ສ້າງການສົນທະນາໃໝ່',
@@ -426,12 +469,40 @@ document.addEventListener('DOMContentLoaded', function () {
             switch_theme: 'ສະຫຼັບຮູບແບບ',
             welcome_title: 'ມື້ນີ້ຂ້ອຍຊ່ວຍຫຍັງທ່ານໄດ້ແດ່?',
             welcome_subtitle: 'ຖາມກ່ຽວກັບພືດ, ສັດ, ການນຳໃຊ້, ຖິ່ນທີ່ຢູ່ ແລະ ຂໍ້ມູນຊະນິດພັນທ້ອງຖິ່ນຂອງລາວ ຈາກຖານຄວາມຮູ້ PhaKhaoLao.',
-            placeholder: 'ພິມຂໍ້ຄວາມຫາ Phakhaolao AI...',
-            disclaimer: 'Phakhaolao AI ອາດຈະຜິດພາດໄດ້. ກະລຸນາກວດສອບຂໍ້ມູນທີ່ສຳຄັນ.',
+            placeholder: 'ພິມຂໍ້ຄວາມຫາ PhaKhaoLao AI...',
+            disclaimer: 'PhaKhaoLao AI ອາດຜິດພາດໄດ້\nກະລຸນາກວດສອບຄຳຕອບຄືນ.',
             delete_title: 'ລຶບການສົນທະນາ?',
             delete_body: 'ນີ້ຈະລຶບການສົນທະນານີ້ ແລະ ຂໍ້ຄວາມທັງໝົດຢ່າງຖາວອນ.',
             cancel: 'ຍົກເລີກ',
             delete: 'ລຶບ',
+            search_chats: 'ຄົ້ນຫາການສົນທະນາ',
+            date_today: 'ມື້ນີ້',
+            date_last_7: '7 ມື້ຜ່ານມາ',
+            date_earlier: 'ກ່ອນໜ້າ',
+            just_now: 'ຫາກໍ່ນີ້',
+            minute_ago: '1 ນາທີກ່ອນ',
+            minutes_ago: '{n} ນາທີກ່ອນ',
+            hour_ago: '1 ຊົ່ວໂມງກ່ອນ',
+            hours_ago: '{n} ຊົ່ວໂມງກ່ອນ',
+            day_ago: 'ມື້ວານນີ້',
+            days_ago: '{n} ມື້ກ່ອນ',
+            copy: 'ຄັດລອກ',
+            listen: 'ຟັງ',
+            cat_species: 'ຊະນິດພັນ',
+            cat_champions: 'ຜູ້ນຳ',
+            cat_library: 'ຫ້ອງສະໝຸດ',
+            cat_stories: 'ເລື່ອງລາວ',
+            cat_conservation: 'ອະນຸລັກ',
+            starter_plants: 'ພືດໃດໃຊ້ໃນການເຮັດອາຫານລາວ?',
+            starter_animals: 'ສັດຫຍັງແດ່ອາໄສຢູ່ໃນລາວ?',
+            starter_medicinal: 'ພືດໃດຖືກໃຊ້ເປັນຢາ?',
+            starter_birds: 'ນົກຊະນິດໃດພົບໃນລາວ?',
+            starter_fish: 'ປາຊະນິດໃດອາໄສຢູ່ແມ່ນ້ຳຂອງ?',
+            starter_matrix: 'ປຽບທຽບເຟິນ 3 ຊະນິດເປັນຕາຕະລາງ',
+            starter_champions: 'ແຕ່ລະແຂວງມີຜູ້ນຳຈັກຄົນ?',
+            starter_library: 'ຫ້ອງສະໝຸດເວົ້າແນວໃດກ່ຽວກັບວະນະກະສິກຳ?',
+            starter_stories: 'ສະແດງເລື່ອງລາວກ່ຽວກັບການກະສິກຳ',
+            starter_invasive: 'ຊະນິດພັນໃດເປັນຊະນິດພັນຮຸກຮານໃນລາວ?',
         },
     };
     let defaultPlaceholder = I18N.en.placeholder;
@@ -439,6 +510,135 @@ document.addEventListener('DOMContentLoaded', function () {
     function interfaceLang() {
         return getResponseLanguage() === 'lo' ? 'lo' : 'en';
     }
+    function t(key) {
+        return I18N[interfaceLang()][key] || I18N.en[key] || '';
+    }
+
+    /**
+     * How long ago something happened, in the reader's language.
+     *
+     * Coarse on purpose: the exact second is never what is wanted, and past a
+     * week a count of days stops meaning anything, so it stops there.
+     */
+    function relativeTime(iso) {
+        const at = new Date(iso);
+        if (isNaN(at)) return '';
+
+        const seconds = Math.max(0, (Date.now() - at.getTime()) / 1000);
+        const phrase = (one, many, count) =>
+            (count === 1 ? t(one) : t(many)).replace('{n}', count);
+
+        if (seconds < 60) return t('just_now');
+        if (seconds < 3600) return phrase('minute_ago', 'minutes_ago', Math.floor(seconds / 60));
+        if (seconds < 86400) return phrase('hour_ago', 'hours_ago', Math.floor(seconds / 3600));
+
+        return phrase('day_ago', 'days_ago', Math.floor(seconds / 86400));
+    }
+
+    /** The three suggestions on the blank page, drawn once per load. */
+    const STARTER_KEYS = [
+        ['starter_plants', 'cat_species'],
+        ['starter_animals', 'cat_species'],
+        ['starter_medicinal', 'cat_species'],
+        ['starter_birds', 'cat_species'],
+        ['starter_fish', 'cat_species'],
+        ['starter_matrix', 'cat_species'],
+        ['starter_champions', 'cat_champions'],
+        ['starter_library', 'cat_library'],
+        ['starter_stories', 'cat_stories'],
+        ['starter_invasive', 'cat_conservation'],
+    ];
+    const CATEGORY_MARKS = {
+        cat_species: '#6fa96b',
+        cat_champions: '#d9a441',
+        cat_library: '#d9a441',
+        cat_stories: '#9b7fc4',
+        cat_conservation: '#5e93c4',
+    };
+    // Keys, not text: switching language translates them rather than drawing
+    // a different three.
+    const chosenStarters = STARTER_KEYS.slice().sort(() => Math.random() - 0.5).slice(0, 3);
+
+    function renderStarters() {
+        const host = document.getElementById('starters');
+        if (!host) return;
+
+        host.innerHTML = '';
+
+        chosenStarters.forEach(([key, category]) => {
+            const prompt = t(key);
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'w-full flex items-start gap-3 text-left px-4 py-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:border-accent-500 transition-colors';
+            card.innerHTML = `
+                <span class="mt-1 shrink-0 w-6 h-6 rounded-lg flex items-center justify-center" style="background:${CATEGORY_MARKS[category]}22">
+                    <span class="w-2.5 h-2.5 rotate-45 rounded-[2px]" style="background:${CATEGORY_MARKS[category]}"></span>
+                </span>
+                <span class="min-w-0">
+                    <span class="block text-[11px] font-semibold tracking-wider text-zinc-500 dark:text-zinc-400">${escapeHtml(t(category))}</span>
+                    <span class="block text-[15px] text-zinc-900 dark:text-zinc-100">${escapeHtml(prompt)}</span>
+                </span>`;
+            card.addEventListener('click', () => {
+                messageInput.value = prompt;
+                messageInput.focus();
+                updateSendButton();
+            });
+            host.appendChild(card);
+        });
+    }
+
+    /** Sort the history under Today / Last 7 days / Earlier. */
+    function groupConversations() {
+        const host = document.getElementById('chat-history');
+        if (!host) return;
+
+        const rows = Array.from(host.querySelectorAll('.js-conv'));
+        host.querySelectorAll('.js-date-heading').forEach((el) => el.remove());
+
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const weekAgo = startOfToday.getTime() - 6 * 86400000;
+
+        const bucketOf = (row) => {
+            const at = new Date(row.dataset.updated).getTime();
+            if (isNaN(at)) return 'date_earlier';
+            if (at >= startOfToday.getTime()) return 'date_today';
+            return at >= weekAgo ? 'date_last_7' : 'date_earlier';
+        };
+
+        let current = null;
+
+        rows.forEach((row) => {
+            if (row.classList.contains('hidden')) return;
+
+            const bucket = bucketOf(row);
+            if (bucket === current) return;
+
+            current = bucket;
+            const heading = document.createElement('div');
+            heading.className = 'js-date-heading px-2 pt-4 pb-1 text-xs font-medium text-zinc-400 tracking-wider';
+            heading.textContent = t(bucket);
+            host.insertBefore(heading, row);
+        });
+    }
+
+    function filterConversations(term) {
+        const needle = term.trim().toLowerCase();
+
+        document.querySelectorAll('.js-conv').forEach((row) => {
+            row.classList.toggle('hidden', needle !== '' && !(row.dataset.title || '').includes(needle));
+        });
+
+        groupConversations();
+    }
+
+    /** Restamp every message; "3 minutes ago" goes stale as you read. */
+    function refreshTimestamps() {
+        document.querySelectorAll('[data-at]').forEach((el) => {
+            el.textContent = relativeTime(el.dataset.at);
+        });
+    }
+
     function applyInterfaceLanguage() {
         const t = I18N[interfaceLang()];
         document.querySelectorAll('[data-i18n]').forEach((el) => {
@@ -450,6 +650,10 @@ document.addEventListener('DOMContentLoaded', function () {
             if (t[k]) el.placeholder = t[k];
         });
         defaultPlaceholder = t.placeholder;
+
+        renderStarters();
+        groupConversations();
+        refreshTimestamps();
     }
 
     function applyLanguageSwitch() {
@@ -466,6 +670,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
     applyLanguageSwitch();
+
+    document.getElementById('chat-search')?.addEventListener('input', (event) => {
+        filterConversations(event.target.value);
+    });
+
+    // "3 minutes ago" goes stale while the page sits open.
+    setInterval(refreshTimestamps, 60000);
+
     let selectedImageFile = null;
 
     // Drag and Drop handlers
@@ -602,20 +814,19 @@ document.addEventListener('DOMContentLoaded', function () {
             content += `<div class="px-1 py-0.5 whitespace-pre-wrap">${escapeHtml(text)}</div>`;
         }
 
+        div.className = 'chat-message relative flex flex-col items-end w-full animate-fade-in';
         div.innerHTML = `<div class="max-w-[85%] md:max-w-[75%] px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white text-[15px] leading-relaxed shadow-sm [overflow-wrap:anywhere] break-words">${content}</div>`;
         messagesContainer.appendChild(div);
+        addUserMessageActions(div, text, new Date().toISOString());
         scrollToBottom();
     }
 
     function createAssistantBubble() {
         hideWelcome();
         const wrapper = document.createElement('div');
-        wrapper.className = 'chat-message relative flex justify-start w-full gap-4 animate-fade-in group';
+        wrapper.className = 'chat-message relative flex justify-start w-full animate-fade-in group';
         wrapper.innerHTML = `
-            <div class="shrink-0 w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shadow-sm overflow-hidden">
-                <img src="{{ asset('favicon-192.png') }}" alt="AI" class="w-6 h-6">
-            </div>
-            <div class="max-w-[85%] md:max-w-[85%]">
+            <div class="w-full">
                 <div class="prose prose-zinc dark:prose-invert max-w-none text-[15px] leading-relaxed">
                     <div class="typing-indicator flex gap-1 items-center py-2 px-1"><span class="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce"></span><span class="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce delay-100"></span><span class="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce delay-200"></span></div>
                 </div>
@@ -791,7 +1002,10 @@ document.addEventListener('DOMContentLoaded', function () {
         return proseEl.textContent || '';
     }
     function copyMessage(proseEl, btn) {
-        const text = getRawText(proseEl).trim();
+        copyText(getRawText(proseEl).trim(), btn);
+    }
+
+    function copyText(text, btn) {
         if (!text) return;
         const done = () => {
             btn.innerHTML = CHECK_SVG;
@@ -823,21 +1037,55 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const copyBtn = document.createElement('button');
         copyBtn.type = 'button';
-        copyBtn.title = 'Copy';
+        copyBtn.title = t('copy');
         copyBtn.className = 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors';
         copyBtn.innerHTML = COPY_SVG;
         copyBtn.addEventListener('click', () => copyMessage(proseEl, copyBtn));
 
         const speakBtn = document.createElement('button');
         speakBtn.type = 'button';
-        speakBtn.title = 'Listen';
+        speakBtn.title = t('listen');
         speakBtn.className = 'js-speak-btn text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors';
         speakBtn.innerHTML = SPEAKER_SVG;
         speakBtn.addEventListener('click', () => speak(proseEl.textContent || '', speakBtn));
 
         row.appendChild(copyBtn);
         row.appendChild(speakBtn);
+        row.appendChild(timestampEl(proseEl.closest('.chat-message')?.dataset.at));
         proseEl.parentElement.appendChild(row);
+
+        showConversationFooter();
+    }
+
+    /** When a message was written, sat beside its actions. */
+    function timestampEl(iso) {
+        const stamp = document.createElement('span');
+        stamp.className = 'ml-1 text-xs text-zinc-400 dark:text-zinc-500';
+        stamp.dataset.at = iso || new Date().toISOString();
+        stamp.textContent = relativeTime(stamp.dataset.at);
+
+        return stamp;
+    }
+
+    /** Copy and a stamp under the reader's own message. */
+    function addUserMessageActions(bubbleEl, text, iso) {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-end gap-2 mt-1.5';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.title = t('copy');
+        copyBtn.className = 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors';
+        copyBtn.innerHTML = COPY_SVG;
+        copyBtn.addEventListener('click', () => copyText(text, copyBtn));
+
+        row.appendChild(copyBtn);
+        row.appendChild(timestampEl(iso));
+        bubbleEl.appendChild(row);
+    }
+
+    function showConversationFooter() {
+        document.getElementById('conversation-footer')?.classList.remove('hidden');
     }
 
     function renderExistingAssistantMessages() {
@@ -850,6 +1098,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
             renderAssistantContent(renderedEl, rawEl.value || '');
             addMessageActions(renderedEl);
+        });
+
+        document.querySelectorAll('.js-user-message').forEach((messageEl) => {
+            if (messageEl.dataset.actionsAdded) return;
+            messageEl.dataset.actionsAdded = '1';
+
+            addUserMessageActions(
+                messageEl,
+                messageEl.querySelector('.js-user-text')?.textContent || '',
+                messageEl.dataset.at
+            );
         });
     }
 
