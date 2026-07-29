@@ -111,6 +111,24 @@ class ChatController extends Controller
         'ພືດນ້ຳເປັນທີ່ເປັນພືດລົ້ມລຸກ' => 'Aquatic Herbs',
     ];
 
+    /**
+     * The conversation's current title.
+     *
+     * It is named by a job that runs after the reply, so the page that
+     * created it was rendered with the opening message as its title and has
+     * no way to learn the real one without asking.
+     */
+    public function title(Request $request, string $id): JsonResponse
+    {
+        abort_unless($this->hasConversationTables(), 404);
+
+        $conversation = $this->ownerConversationsQuery($this->resolveOwner($request))->find($id);
+
+        abort_unless($conversation, 404);
+
+        return response()->json(['title' => $conversation->title]);
+    }
+
     public function index(Request $request, ?string $id = null): View
     {
         $owner = $this->resolveOwner($request);

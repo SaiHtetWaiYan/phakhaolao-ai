@@ -358,6 +358,42 @@ async function deleteConversation(id) {
 const DELETED_FLAG = 'pkl_conversation_deleted';
 const TRASH_SVG = '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16"></path></svg>';
 
+/**
+ * Pick up the name the assistant gave this conversation.
+ *
+ * The title is written by a job that runs after the reply, so the sidebar
+ * was rendered with the opening question and would keep showing it until
+ * the next page load. Ask twice: once for a quick model, once for a slow one.
+ */
+function refreshConversationTitle(id, attempt = 0) {
+    if (!id || attempt > 1) return;
+
+    setTimeout(async () => {
+        try {
+            const response = await fetch(`/chat/${id}/title`, { headers: { 'Accept': 'application/json' } });
+            if (!response.ok) return;
+
+            const { title } = await response.json();
+            if (!title) return;
+
+            const row = document.querySelector(`.js-conv [href$="/${id}"]`)?.closest('.js-conv');
+            const label = row?.querySelector('a span');
+
+            if (label && label.textContent.trim() !== title) {
+                label.textContent = title;
+                label.title = title;
+                row.dataset.titleFull = title;
+                row.dataset.title = title.toLowerCase();
+                return;
+            }
+
+            refreshConversationTitle(id, attempt + 1);
+        } catch (e) {
+            // A title that stays as the question is a cosmetic loss.
+        }
+    }, attempt === 0 ? 2500 : 5000);
+}
+
 /** A pill that drops in below the header to report what just happened. */
 function pkToast(message, icon) {
     document.getElementById('pk-toast')?.remove();
@@ -726,6 +762,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // After the translations exist, not before: this runs inside the same
     // callback that declares them, and reaching for I18N above its
     // declaration threw, taking the whole page's setup down with it.
+    refreshConversationTitle(currentConversationId);
+
     if (sessionStorage.getItem(DELETED_FLAG)) {
         sessionStorage.removeItem(DELETED_FLAG);
 
@@ -1298,6 +1336,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 // If this started as a new chat, navigate to the created conversation once.
                 if (currentConversationId && window.location.pathname !== `/chat/${currentConversationId}`) {
                     window.location.href = `/chat/${currentConversationId}`;
+                } else {
+                    refreshConversationTitle(currentConversationId);
                 }
             }
         } catch (error) {
