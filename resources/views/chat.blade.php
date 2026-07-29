@@ -474,15 +474,28 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function toggleTheme() {
-        const isDark = document.documentElement.classList.contains('dark');
+        const root = document.documentElement;
+
+        // Every surface carries its own colour transition, so a switch
+        // arrived in pieces — each element easing at its own pace while the
+        // ones without a transition snapped. Hold them all still for the
+        // swap, then hand the transitions back.
+        root.classList.add('pk-theme-switching');
+
+        const isDark = root.classList.contains('dark');
         if (isDark) {
-            document.documentElement.classList.remove('dark');
+            root.classList.remove('dark');
             localStorage.setItem('color-theme', 'light');
         } else {
-            document.documentElement.classList.add('dark');
+            root.classList.add('dark');
             localStorage.setItem('color-theme', 'dark');
         }
         syncThemeToggleIcons();
+
+        // Two frames: one for the new colours to paint, one to release.
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => root.classList.remove('pk-theme-switching'));
+        });
     }
 
     syncThemeToggleIcons();
@@ -2036,6 +2049,14 @@ document.addEventListener('DOMContentLoaded', function () {
 .pk-list li { margin: 0.15rem 0; }
 ul.pk-list { list-style: disc; }
 ol.pk-list { list-style: decimal; }
+
+/* Nothing eases while the theme changes, so the whole page turns at once. */
+.pk-theme-switching,
+.pk-theme-switching *,
+.pk-theme-switching *::before,
+.pk-theme-switching *::after {
+    transition: none !important;
+}
 
 /* Nothing marks focus on these inputs: the browser's default outline is its
    own accent colour, and no replacement was wanted. The cursor sits in the
