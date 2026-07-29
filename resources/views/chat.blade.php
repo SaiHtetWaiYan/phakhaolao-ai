@@ -579,8 +579,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     <span class="block text-[15px] text-zinc-900 dark:text-zinc-100">${escapeHtml(prompt)}</span>
                 </span>`;
             card.addEventListener('click', () => {
-                messageInput.value = prompt;
-                messageInput.focus();
+                input.value = prompt;
+                input.focus();
                 updateSendButton();
             });
             host.appendChild(card);
