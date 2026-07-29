@@ -2037,20 +2037,12 @@ document.addEventListener('DOMContentLoaded', function () {
 ul.pk-list { list-style: disc; }
 ol.pk-list { list-style: decimal; }
 
-/* The browser's own focus ring is its accent colour — blue — which belongs
-   to no part of this palette. Drop it, and mark focus with the neutral
-   border a shade stronger instead: keyboard users still need to see where
-   they are, but nothing here needs colouring in. */
-/* The browser's own focus ring is its accent colour — blue — which belongs
-   to no part of this palette.
-   These inputs carry no border at all (the reset sets border-width to 0, and
-   the old classes only ever set a colour), so what reads as one is the
-   shadow. Mark focus by deepening that shadow into a neutral ring: visible
-   for anyone tabbing through, and no colour anywhere. */
+/* Nothing marks focus on these inputs: the browser's default outline is its
+   own accent colour, and no replacement was wanted. The cursor sits in the
+   field, which is the only signal left. */
 #message-input:focus,
 #chat-search:focus {
     outline: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, .1), 0 0 0 2px rgba(154, 156, 140, .5);
 }
 
 /* Answer-language switch active state (build-independent). */
