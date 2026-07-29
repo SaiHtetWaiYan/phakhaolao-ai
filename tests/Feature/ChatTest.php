@@ -5,7 +5,7 @@ use App\Ai\Agents\ChatAssistant;
 it('loads the chat page', function () {
     $this->get(route('chat'))
         ->assertSuccessful()
-        ->assertSee('How can I help you today?');
+        ->assertSee('Hi, I am PhaKhaoLao AI');
 });
 
 it('requires a message to send', function () {
