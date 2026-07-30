@@ -536,6 +536,9 @@ document.addEventListener('DOMContentLoaded', function () {
             nothing_to_read: 'There is nothing to read aloud here.',
             delete_failed: 'Could not delete that chat.',
             search_chats: 'Search chats',
+            stamp_today: 'Today',
+            stamp_yesterday: 'Yesterday',
+            months: 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec',
             date_today: 'TODAY',
             date_last_7: 'LAST 7 DAYS',
             date_earlier: 'EARLIER',
@@ -579,6 +582,9 @@ document.addEventListener('DOMContentLoaded', function () {
             nothing_to_read: 'ບໍ່ມີເນື້ອຫາໃຫ້ອ່ານອອກສຽງ.',
             delete_failed: 'ບໍ່ສາມາດລຶບການສົນທະນານີ້ໄດ້.',
             search_chats: 'ຄົ້ນຫາການສົນທະນາ',
+            stamp_today: 'ມື້ນີ້',
+            stamp_yesterday: 'ມື້ວານນີ້',
+            months: 'ມັງກອນ,ກຸມພາ,ມີນາ,ເມສາ,ພຶດສະພາ,ມິຖຸນາ,ກໍລະກົດ,ສິງຫາ,ກັນຍາ,ຕຸລາ,ພະຈິກ,ທັນວາ',
             date_today: 'ມື້ນີ້',
             date_last_7: '7 ມື້ຜ່ານມາ',
             date_earlier: 'ກ່ອນໜ້າ',
@@ -745,6 +751,59 @@ document.addEventListener('DOMContentLoaded', function () {
         groupConversations();
     }
 
+    /**
+     * When the exchange below it happened.
+     *
+     * Written out rather than numeric, which reads differently by country, and
+     * 24-hour, which needs no am/pm to translate.
+     */
+    function stampLabel(at) {
+        const midnight = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const days = Math.round((midnight(new Date()) - midnight(at)) / 86400000);
+
+        const day = days === 0
+            ? t('stamp_today')
+            : days === 1
+                ? t('stamp_yesterday')
+                : `${at.getDate()} ${t('months').split(',')[at.getMonth()]} ${at.getFullYear()}`;
+
+        const time = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+
+        return `${day} ${time}`;
+    }
+
+    /**
+     * Date and time above the first message, and again wherever the thread
+     * picks up after a break. Stamping every message would repeat the same
+     * minute down the whole screen.
+     */
+    function renderMessageStamps() {
+        const container = document.getElementById('messages-container');
+        if (!container) return;
+
+        container.querySelectorAll('.js-stamp').forEach((el) => el.remove());
+
+        let previous = null;
+
+        container.querySelectorAll('.chat-message').forEach((message) => {
+            const at = new Date(message.dataset.at || '');
+            if (isNaN(at)) return;
+
+            const gap = previous === null
+                || (at - previous) / 60000 >= 30
+                || at.toDateString() !== previous.toDateString();
+
+            if (gap) {
+                const stamp = document.createElement('div');
+                stamp.className = 'js-stamp pt-3 pb-1 text-center text-[11px] tracking-wide text-zinc-400 dark:text-zinc-500';
+                stamp.textContent = stampLabel(at);
+                container.insertBefore(stamp, message);
+            }
+
+            previous = at;
+        });
+    }
+
     /** Restamp every message; "3 minutes ago" goes stale as you read. */
     function refreshTimestamps() {
         document.querySelectorAll('[data-stamp]').forEach((el) => {
@@ -767,6 +826,7 @@ document.addEventListener('DOMContentLoaded', function () {
         renderStarters();
         groupConversations();
         refreshTimestamps();
+        renderMessageStamps();
     }
 
     function applyLanguageSwitch() {
@@ -941,9 +1001,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         div.className = 'chat-message relative flex flex-col items-end w-full animate-fade-in';
+        div.dataset.at = new Date().toISOString();
         div.innerHTML = `<div class="max-w-[85%] md:max-w-[75%] px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white text-[15px] leading-relaxed shadow-sm [overflow-wrap:anywhere] break-words">${content}</div>`;
         messagesContainer.appendChild(div);
-        addUserMessageActions(div, text, new Date().toISOString());
+        addUserMessageActions(div, text, div.dataset.at);
+        renderMessageStamps();
         scrollToBottom();
     }
 
@@ -951,6 +1013,7 @@ document.addEventListener('DOMContentLoaded', function () {
         hideWelcome();
         const wrapper = document.createElement('div');
         wrapper.className = 'chat-message relative flex justify-start w-full animate-fade-in group';
+        wrapper.dataset.at = new Date().toISOString();
         wrapper.innerHTML = `
             <div class="w-full">
                 <div class="prose prose-zinc dark:prose-invert max-w-none text-[15px] leading-relaxed">
