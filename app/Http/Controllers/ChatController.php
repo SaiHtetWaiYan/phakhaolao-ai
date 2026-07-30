@@ -9,6 +9,7 @@ use App\Models\AgentConversation;
 use App\Models\AgentConversationMessage;
 use App\Models\Species;
 use App\Services\SpeciesExportService;
+use App\Support\AiFailure;
 use App\Support\RagSettings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -291,10 +292,18 @@ class ChatController extends Controller
         try {
             // Token streaming (stream()) returns empty responses under php-fpm, so we
             // generate the full reply synchronously and deliver it as a single SSE chunk.
-            $reply = trim((string) $agent->prompt(
-                $promptMessage,
-                $attachments,
-                model: config('ai.chat.model') ?: null,
+            //
+            // Retried on a rate limit: the provider's cap is per minute, so a
+            // short wait usually clears it and the reader never learns of it.
+            $reply = trim((string) retry(
+                AiFailure::ATTEMPTS,
+                fn () => $agent->prompt(
+                    $promptMessage,
+                    $attachments,
+                    model: config('ai.chat.model') ?: null,
+                ),
+                AiFailure::RETRY_DELAY_MS,
+                fn (\Throwable $e) => AiFailure::isRateLimit($e),
             ));
 
             if ($reply === '') {
@@ -309,10 +318,7 @@ class ChatController extends Controller
                 'message_length' => mb_strlen($message),
             ]);
 
-            return $this->streamPlainTextResponse(
-                'Sorry, I encountered an error processing your request. Please try again.',
-                $conversationId
-            );
+            return $this->streamPlainTextResponse(AiFailure::message($e), $conversationId);
         }
     }
 

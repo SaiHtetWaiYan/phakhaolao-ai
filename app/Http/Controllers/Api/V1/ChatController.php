@@ -9,6 +9,7 @@ use App\Http\Requests\Api\SendChatMessageRequest;
 use App\Jobs\GenerateConversationTitle;
 use App\Models\AgentConversation;
 use App\Models\AgentConversationMessage;
+use App\Support\AiFailure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -84,16 +85,23 @@ class ChatController extends Controller
         $this->storeMessage($conversation->id, 'user', $message, $imageUrl);
 
         try {
-            $reply = trim((string) (new ChatAssistant($this->history($conversation->id)))->prompt(
-                $this->buildPrompt($message, $imageUrl !== null),
-                $attachments,
-                model: config('ai.chat.model') ?: null,
+            // Retried on a rate limit: the provider's cap is per minute, so a
+            // short wait usually clears it and the reader never learns of it.
+            $reply = trim((string) retry(
+                AiFailure::ATTEMPTS,
+                fn () => (new ChatAssistant($this->history($conversation->id)))->prompt(
+                    $this->buildPrompt($message, $imageUrl !== null),
+                    $attachments,
+                    model: config('ai.chat.model') ?: null,
+                ),
+                AiFailure::RETRY_DELAY_MS,
+                fn (Throwable $e) => AiFailure::isRateLimit($e),
             ));
         } catch (Throwable $e) {
             Log::error('API chat failed', ['error' => $e->getMessage()]);
 
             return response()->json([
-                'message' => 'Sorry, I encountered an error processing your request. Please try again.',
+                'message' => AiFailure::message($e),
                 'conversation_id' => $conversation->id,
             ], 500);
         }
