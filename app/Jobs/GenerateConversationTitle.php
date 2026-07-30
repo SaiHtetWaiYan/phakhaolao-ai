@@ -81,12 +81,18 @@ class GenerateConversationTitle implements ShouldQueue
 
     /**
      * Models like to wrap a title in quotes or end it with a full stop.
+     *
+     * Trimmed by pattern rather than by character list: trim() takes its list
+     * as bytes, and the curly quotes contribute 0x80, 0x98, 0x99, 0x9c and
+     * 0x9d — the closing bytes of ເ, ຘ, ນ, ຜ and ຝ. A Lao title ending in one
+     * of those lost its last byte and became invalid UTF-8, which Postgres
+     * then refused to store.
      */
     private function tidy(string $title): string
     {
         $title = trim((string) preg_replace('/\s+/u', ' ', $title));
-        $title = trim($title, " \t\n\r\0\x0B\"'“”‘’");
-        $title = rtrim($title, '.。');
+        $title = (string) preg_replace('/^[\s"\'“”‘’]+|[\s"\'“”‘’]+$/u', '', $title);
+        $title = (string) preg_replace('/[.。]+$/u', '', $title);
 
         return Str::limit($title, 60, '');
     }

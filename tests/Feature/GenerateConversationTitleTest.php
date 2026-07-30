@@ -75,3 +75,23 @@ it('reads the opening exchange', function () {
         ->and($messages->firstWhere('role', 'assistant')->content)
         ->toBe('Many dishes use herbs.');
 });
+
+// trim() takes its character list as bytes, and the curly quotes contribute
+// the closing bytes of several common Lao letters. A title ending in one lost
+// its last byte and became invalid UTF-8, which Postgres refused to store.
+it('keeps a Lao title intact', function (string $title) {
+    $tidied = tidyTitle($title);
+
+    expect(mb_check_encoding($tidied, 'UTF-8'))->toBeTrue()
+        ->and($tidied)->toBe($title);
+})->with([
+    'ends in ນ' => ['ຈຳນວນຊະນິດພືດໃນຖານຂໍ້ມູນ'],
+    'ends in ເ' => ['ຊະນິດພັນທີ່ພົບໃນເ'],
+    'ends in ຜ' => ['ພືດພື້ນເມືອງຜ'],
+    'ends in ຝ' => ['ການປູກຝ'],
+]);
+
+it('still strips the quotes and full stops a model adds', function () {
+    expect(tidyTitle('"Medicinal Plants in Laos."'))->toBe('Medicinal Plants in Laos')
+        ->and(tidyTitle('“ຊະນິດພັນພືດ”'))->toBe('ຊະນິດພັນພືດ');
+});
