@@ -218,6 +218,26 @@ Please double-check responses.</p>
                     </div>
                 </div>
 
+                {{-- While recording, the composer gives way to this, as the app
+                     does: cancel, a live waveform, stop-to-edit and send. --}}
+                <div id="voice-bar" class="hidden items-center gap-1 rounded-2xl bg-white dark:bg-zinc-800 px-2 py-2 shadow-sm">
+                    <button id="voice-cancel" type="button" data-i18n-title="cancel_recording" title="Cancel recording" class="p-2.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-xl transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                    <canvas id="voice-wave" class="flex-1 h-9 w-full"></canvas>
+                    <button id="voice-stop" type="button" data-i18n-title="stop_recording" title="Stop recording" class="p-2.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-xl transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"></circle><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" stroke="none"></rect></svg>
+                    </button>
+                    <button id="voice-send" type="button" data-i18n-title="send" title="Send" class="p-2.5 bg-accent-500 text-accent-900 rounded-xl hover:bg-accent-600 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </button>
+                </div>
+
+                <div id="transcribing-bar" class="hidden items-center gap-3 rounded-2xl bg-white dark:bg-zinc-800 px-5 py-4 shadow-sm text-zinc-500 dark:text-zinc-400">
+                    <svg class="w-5 h-5 animate-spin shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                    <span data-i18n="transcribing">Transcribing…</span>
+                </div>
+
                 <form id="chat-form" class="relative group">
                     <input type="file" id="image-input" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
                     <button
@@ -536,6 +556,10 @@ document.addEventListener('DOMContentLoaded', function () {
             nothing_to_read: 'There is nothing to read aloud here.',
             delete_failed: 'Could not delete that chat.',
             search_chats: 'Search chats',
+            listening: 'Listening…',
+            transcribing: 'Transcribing…',
+            cancel_recording: 'Cancel recording',
+            stop_recording: 'Stop recording',
             stamp_today: 'Today',
             stamp_yesterday: 'Yesterday',
             months: 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec',
@@ -582,6 +606,10 @@ document.addEventListener('DOMContentLoaded', function () {
             nothing_to_read: 'ບໍ່ມີເນື້ອຫາໃຫ້ອ່ານອອກສຽງ.',
             delete_failed: 'ບໍ່ສາມາດລຶບການສົນທະນານີ້ໄດ້.',
             search_chats: 'ຄົ້ນຫາການສົນທະນາ',
+            listening: 'ກຳລັງຟັງ...',
+            transcribing: 'ກຳລັງແປງສຽງເປັນຂໍ້ຄວາມ...',
+            cancel_recording: 'ຍົກເລີກການບັນທຶກ',
+            stop_recording: 'ຢຸດການບັນທຶກ',
             stamp_today: 'ມື້ນີ້',
             stamp_yesterday: 'ມື້ວານນີ້',
             months: 'ມັງກອນ,ກຸມພາ,ມີນາ,ເມສາ,ພຶດສະພາ,ມິຖຸນາ,ກໍລະກົດ,ສິງຫາ,ກັນຍາ,ຕຸລາ,ພະຈິກ,ທັນວາ',
@@ -816,6 +844,13 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('[data-i18n]').forEach((el) => {
             const k = el.dataset.i18n;
             if (t[k]) el.textContent = t[k];
+        });
+        document.querySelectorAll('[data-i18n-title]').forEach((el) => {
+            const k = el.dataset.i18nTitle;
+            if (t[k]) {
+                el.title = t[k];
+                el.setAttribute('aria-label', t[k]);
+            }
         });
         document.querySelectorAll('[data-i18n-ph]').forEach((el) => {
             const k = el.dataset.i18nPh;
@@ -2031,17 +2066,101 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Voice input (speech-to-text via Google STT) ---
     const micBtn = document.getElementById('mic-btn');
     const MIC_SVG = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-14 0m7 7v3m-4 0h8M12 1a3 3 0 00-3 3v6a3 3 0 006 0V4a3 3 0 00-3-3z"></path></svg>';
-    const MIC_STOP_SVG = '<svg class="w-5 h-5 text-red-500 animate-pulse" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>';
-    const MIC_SPINNER_SVG = '<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>';
     let mediaRecorder = null;
     let audioChunks = [];
 
+    const voiceBar = document.getElementById('voice-bar');
+    const transcribingBar = document.getElementById('transcribing-bar');
+    const waveCanvas = document.getElementById('voice-wave');
+
+    // 34 bars, as the app draws, so silence still reads as a line.
+    const WAVE_BARS = 34;
+    let waveHistory = new Array(WAVE_BARS).fill(0);
+    let audioContext = null;
+    let analyser = null;
+    let waveFrame = null;
+    let recordingStream = null;
+    let discardRecording = false;
+    let sendAfterTranscribing = false;
+
+    /**
+     * Which of the three faces the composer is wearing.
+     *
+     * Recording replaces it outright rather than colouring the microphone: a
+     * red icon said something was happening without saying what would end it.
+     */
     function setMicState(state) {
-        if (!micBtn) return;
-        micBtn.disabled = state === 'transcribing';
-        micBtn.innerHTML = state === 'recording' ? MIC_STOP_SVG : (state === 'transcribing' ? MIC_SPINNER_SVG : MIC_SVG);
-        micBtn.title = state === 'recording' ? 'Stop recording' : 'Voice input';
+        if (micBtn) {
+            micBtn.disabled = state !== 'idle';
+            micBtn.innerHTML = MIC_SVG;
+            micBtn.title = t('listen') || 'Voice input';
+        }
+
+        form?.classList.toggle('hidden', state !== 'idle');
+        voiceBar?.classList.toggle('hidden', state !== 'recording');
+        voiceBar?.classList.toggle('flex', state === 'recording');
+        transcribingBar?.classList.toggle('hidden', state !== 'transcribing');
+        transcribingBar?.classList.toggle('flex', state === 'transcribing');
     }
+
+    function drawWaveform() {
+        if (!waveCanvas || !analyser) return;
+
+        const readings = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteTimeDomainData(readings);
+
+        // Loudness as a fraction of full scale, from the deviation from centre.
+        let sum = 0;
+        for (const reading of readings) {
+            const deviation = (reading - 128) / 128;
+            sum += deviation * deviation;
+        }
+        const level = Math.min(1, Math.sqrt(sum / readings.length) * 3.2);
+
+        waveHistory.push(level);
+        waveHistory = waveHistory.slice(-WAVE_BARS);
+
+        const ratio = window.devicePixelRatio || 1;
+        const width = waveCanvas.clientWidth;
+        const height = waveCanvas.clientHeight;
+
+        if (waveCanvas.width !== width * ratio || waveCanvas.height !== height * ratio) {
+            waveCanvas.width = width * ratio;
+            waveCanvas.height = height * ratio;
+        }
+
+        const ctx = waveCanvas.getContext('2d');
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        ctx.strokeStyle = document.documentElement.classList.contains('dark') ? '#9a9c8c' : '#5e6153';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+
+        const step = width / WAVE_BARS;
+
+        waveHistory.forEach((value, index) => {
+            // A floor, so silence still reads as a line rather than nothing.
+            const barHeight = 2 + value * (height - 6);
+            const x = step * index + step / 2;
+
+            ctx.beginPath();
+            ctx.moveTo(x, height / 2 - barHeight / 2);
+            ctx.lineTo(x, height / 2 + barHeight / 2);
+            ctx.stroke();
+        });
+
+        waveFrame = requestAnimationFrame(drawWaveform);
+    }
+
+    function stopWaveform() {
+        if (waveFrame) cancelAnimationFrame(waveFrame);
+        waveFrame = null;
+        analyser = null;
+        audioContext?.close().catch(() => {});
+        audioContext = null;
+        waveHistory = new Array(WAVE_BARS).fill(0);
+    }
+
     async function startRecording() {
         let stream;
         try {
@@ -2050,17 +2169,56 @@ document.addEventListener('DOMContentLoaded', function () {
             showError('Microphone access is required for voice input.');
             return;
         }
+
+        recordingStream = stream;
         audioChunks = [];
+        discardRecording = false;
+        sendAfterTranscribing = false;
+
         const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
         mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
         mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunks.push(e.data); };
         mediaRecorder.onstop = () => {
             stream.getTracks().forEach((t) => t.stop());
+            recordingStream = null;
+            stopWaveform();
+
+            if (discardRecording) {
+                setMicState('idle');
+                return;
+            }
+
             transcribeAudio(new Blob(audioChunks, { type: 'audio/webm' }));
         };
+
         mediaRecorder.start();
         setMicState('recording');
+
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 512;
+            audioContext.createMediaStreamSource(stream).connect(analyser);
+            drawWaveform();
+        } catch (e) {
+            // No waveform is a cosmetic loss; the recording still works.
+        }
     }
+
+    function finishRecording({ andSend = false } = {}) {
+        if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+
+        sendAfterTranscribing = andSend;
+        mediaRecorder.stop();
+    }
+
+    function cancelRecording() {
+        if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+
+        discardRecording = true;
+        mediaRecorder.stop();
+    }
+
     function transcribeAudio(blob) {
         if (!blob || !blob.size) { setMicState('idle'); return; }
         setMicState('transcribing');
@@ -2076,24 +2234,28 @@ document.addEventListener('DOMContentLoaded', function () {
         }).then((r) => r.json()).then((data) => {
             setMicState('idle');
             const text = (data && data.text) ? String(data.text).trim() : '';
-            if (text) {
-                input.value = input.value.trim() ? (input.value.trim() + ' ' + text) : text;
-                input.focus();
-                updateSendButton();
-            } else {
+
+            if (!text) {
                 showError('Could not transcribe the audio. Please try again.');
+                return;
             }
+
+            input.value = input.value.trim() ? (input.value.trim() + ' ' + text) : text;
+            updateSendButton();
+
+            if (sendAfterTranscribing) {
+                form.requestSubmit();
+                return;
+            }
+
+            input.focus();
         }).catch(() => { setMicState('idle'); showError('Voice transcription failed.'); });
     }
-    if (micBtn) {
-        micBtn.addEventListener('click', () => {
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-            } else {
-                startRecording();
-            }
-        });
-    }
+
+    micBtn?.addEventListener('click', () => startRecording());
+    document.getElementById('voice-cancel')?.addEventListener('click', cancelRecording);
+    document.getElementById('voice-stop')?.addEventListener('click', () => finishRecording());
+    document.getElementById('voice-send')?.addEventListener('click', () => finishRecording({ andSend: true }));
 
     deleteModalCancel.addEventListener('click', closeDeleteModal);
     deleteModalConfirm.addEventListener('click', async () => {
