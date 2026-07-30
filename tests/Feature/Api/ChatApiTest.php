@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Requests\Api\SendChatMessageRequest;
 use App\Models\AgentConversation;
 use App\Models\AgentConversationMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -51,8 +52,14 @@ it('validates the message', function (array $payload, string $field) {
     'empty message' => [['message' => ''], 'message'],
     'too long' => [['message' => str_repeat('a', 5001)], 'message'],
     'bad conversation id' => [['message' => 'hi', 'conversation_id' => 'not-a-uuid'], 'conversation_id'],
-    'bad language' => [['message' => 'hi', 'response_language' => 'fr'], 'response_language'],
 ]);
+
+// The reply follows the question's own language now, so there is no
+// preference to send. An older build still sending one is ignored rather than
+// rejected, because the field is no longer validated at all.
+it('no longer takes a reply-language preference', function () {
+    expect((new SendChatMessageRequest)->rules())->not->toHaveKey('response_language');
+});
 
 it('404s when sending to a conversation owned by another device', function () {
     $other = makeConversation('someone-elses-device-token-1234');

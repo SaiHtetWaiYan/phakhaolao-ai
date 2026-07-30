@@ -85,10 +85,7 @@ class ChatController extends Controller
 
         try {
             $reply = trim((string) (new ChatAssistant($this->history($conversation->id)))->prompt(
-                $this->applyLanguage(
-                    $this->buildPrompt($message, $imageUrl !== null),
-                    $request->validated('response_language')
-                ),
+                $this->buildPrompt($message, $imageUrl !== null),
                 $attachments,
                 model: config('ai.chat.model') ?: null,
             ));
@@ -262,21 +259,6 @@ class ChatController extends Controller
             ->map(fn ($m) => $m->role === 'user' ? new UserMessage($m->content) : new AssistantMessage($m->content))
             ->values()
             ->all();
-    }
-
-    /**
-     * Steers the reply language without altering the stored message.
-     */
-    private function applyLanguage(string $message, ?string $language): string
-    {
-        if (! in_array($language, ['en', 'lo'], true)) {
-            return $message;
-        }
-
-        $name = $language === 'lo' ? 'Lao' : 'English';
-
-        return "[Reply entirely in {$name}. Pass language=\"{$language}\" to all catalogue search tools, and "
-            ."translate any content into {$name} if the source is in another language.]\n\n".$message;
     }
 
     /**

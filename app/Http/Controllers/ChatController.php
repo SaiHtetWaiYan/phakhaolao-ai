@@ -283,18 +283,10 @@ class ChatController extends Controller
             return $this->streamPlainTextResponse($chartMessage, $conversationId);
         }
 
-        // When the user forces an answer language, steer the agent (without
-        // altering the saved/displayed message). Otherwise it auto-detects.
-        $forcedLanguage = in_array($request->input('response_language'), ['en', 'lo'], true)
-            ? $request->input('response_language')
-            : null;
-
+        // The reply follows the question's own language, as the agent is
+        // instructed to. A stored preference used to override that, so a Lao
+        // interface answered an English question in Lao.
         $promptMessage = $message;
-        if ($forcedLanguage !== null) {
-            $languageName = $forcedLanguage === 'lo' ? 'Lao' : 'English';
-            $promptMessage = "[Reply entirely in {$languageName}. Pass language=\"{$forcedLanguage}\" to all catalogue "
-                ."search tools, and translate any content into {$languageName} if the source is in another language.]\n\n".$message;
-        }
 
         try {
             // Token streaming (stream()) returns empty responses under php-fpm, so we

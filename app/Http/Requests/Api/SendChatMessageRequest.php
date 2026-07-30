@@ -22,7 +22,6 @@ class SendChatMessageRequest extends FormRequest
             'message' => ['required_without:image', 'nullable', 'string', 'max:5000'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
             'conversation_id' => ['nullable', 'uuid'],
-            'response_language' => ['nullable', 'in:en,lo'],
         ];
     }
 
@@ -38,7 +37,6 @@ class SendChatMessageRequest extends FormRequest
             'image.mimes' => 'The image must be a JPG, PNG, WebP, or GIF.',
             'image.max' => 'The image must not exceed 10MB.',
             'conversation_id.uuid' => 'The conversation id must be a valid UUID.',
-            'response_language.in' => 'The response language must be "en" or "lo".',
         ];
     }
 }

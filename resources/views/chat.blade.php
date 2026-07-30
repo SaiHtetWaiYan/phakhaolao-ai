@@ -103,7 +103,7 @@
                 <img src="{{ asset('images/logo.webp') }}" alt="Logo" class="h-7 w-auto dark:filter-[invert(1)_hue-rotate(180deg)]">
             </div>
             <div class="flex items-center gap-1">
-                <div class="js-lang-switch flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5 text-[11px] font-semibold mr-1" title="Answer language">
+                <div class="js-lang-switch flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5 text-[11px] font-semibold mr-1" title="Interface language">
                     <button type="button" data-lang="auto" class="js-lang-opt px-2 py-0.5 rounded-md transition-colors">Auto</button>
                     <button type="button" data-lang="en" class="js-lang-opt px-2 py-0.5 rounded-md transition-colors">EN</button>
                     <button type="button" data-lang="lo" class="js-lang-opt px-2 py-0.5 rounded-md transition-colors">ລາວ</button>
@@ -124,7 +124,7 @@
                  and a menu that never existed, and there is only one model. --}}
             <div></div>
             <div class="flex items-center gap-3">
-                <div class="js-lang-switch flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5 text-xs font-semibold" title="Answer language">
+                <div class="js-lang-switch flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5 text-xs font-semibold" title="Interface language">
                     <button type="button" data-lang="auto" class="js-lang-opt px-2.5 py-1 rounded-md transition-colors">Auto</button>
                     <button type="button" data-lang="en" class="js-lang-opt px-2.5 py-1 rounded-md transition-colors">EN</button>
                     <button type="button" data-lang="lo" class="js-lang-opt px-2.5 py-1 rounded-md transition-colors">ລາວ</button>
@@ -512,7 +512,8 @@ document.addEventListener('DOMContentLoaded', function () {
     let isStreaming = false;
     let abortController = null;
 
-    // Answer-language switch (auto / en / lo), persisted in the browser.
+    // Interface language (auto / en / lo), persisted in the browser. Replies
+    // follow the language of each question, so this no longer steers them.
     const LANG_KEY = 'pkl_response_language';
     function getResponseLanguage() {
         return localStorage.getItem(LANG_KEY) || 'auto';
@@ -610,7 +611,13 @@ document.addEventListener('DOMContentLoaded', function () {
     let defaultPlaceholder = I18N.en.placeholder;
 
     function interfaceLang() {
-        return getResponseLanguage() === 'lo' ? 'lo' : 'en';
+        const chosen = getResponseLanguage();
+
+        if (chosen === 'lo' || chosen === 'en') return chosen;
+
+        // Auto now means what the reader's browser asks for, which is a real
+        // preference; it used to mean "do not steer the reply".
+        return (navigator.language || '').toLowerCase().startsWith('lo') ? 'lo' : 'en';
     }
     function t(key) {
         return I18N[interfaceLang()][key] || I18N.en[key] || '';
@@ -1362,10 +1369,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const formData = new FormData();
             formData.append('message', message);
             formData.append('conversation_id', currentConversationId || '');
-            const respLang = getResponseLanguage();
-            if (respLang === 'en' || respLang === 'lo') {
-                formData.append('response_language', respLang);
-            }
             if (imageFile) {
                 formData.append('image', imageFile);
             }
