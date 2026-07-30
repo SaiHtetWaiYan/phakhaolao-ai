@@ -531,6 +531,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let isStreaming = false;
     let abortController = null;
+    let thinkingClock = null;
+
+    /**
+     * How long the reply has been coming, counted from the wait beginning.
+     *
+     * Held back for a second: a counter that flicks to 1s on every quick reply
+     * is noise, and the wait it explains has not happened yet.
+     */
+    function startThinkingClock(bubble) {
+        stopThinkingClock();
+
+        const readout = bubble?.querySelector('.js-thinking-seconds');
+        if (!readout) return;
+
+        let seconds = 0;
+
+        thinkingClock = setInterval(() => {
+            seconds += 1;
+            readout.textContent = `${seconds}s`;
+        }, 1000);
+    }
+
+    function stopThinkingClock() {
+        if (thinkingClock) clearInterval(thinkingClock);
+        thinkingClock = null;
+    }
 
     // Interface language (auto / en / lo), persisted in the browser. Replies
     // follow the language of each question, so this no longer steers them.
@@ -1052,10 +1078,11 @@ document.addEventListener('DOMContentLoaded', function () {
         wrapper.innerHTML = `
             <div class="w-full">
                 <div class="prose prose-zinc dark:prose-invert max-w-none text-[15px] leading-relaxed">
-                    <div class="typing-indicator py-2 px-1"><img src="{{ asset('favicon-192.png') }}" alt="" class="pk-thinking w-7 h-7"></div>
+                    <div class="typing-indicator flex items-center gap-2.5 py-2 px-1"><img src="{{ asset('favicon-192.png') }}" alt="" class="pk-thinking w-7 h-7"><span class="js-thinking-seconds text-xs tabular-nums text-zinc-400 dark:text-zinc-500"></span></div>
                 </div>
             </div>`;
         messagesContainer.appendChild(wrapper);
+        startThinkingClock(wrapper);
         scrollToBottom();
         return wrapper.querySelector('.prose');
     }
@@ -1559,6 +1586,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 bubble.parentElement.parentElement.remove();
             }
         } finally {
+            stopThinkingClock();
             isStreaming = false;
             abortController = null;
             updateSendButton();
