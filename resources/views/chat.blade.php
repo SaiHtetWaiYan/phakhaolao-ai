@@ -1126,25 +1126,38 @@ document.addEventListener('DOMContentLoaded', function () {
      * and an auto-linked address are both just more words.
      */
     function speakableText(markdown) {
-        return (markdown || '')
+        const withoutCode = (markdown || '')
             .replace(/```[\s\S]*?```/g, '')
             .replace(/`([^`]*)`/g, '$1')
-            .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
-            .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-            .replace(/\[CHART\][\s\S]*?\[\/CHART\]/gi, '')
-            .replace(/https?:\/\/\S+/g, '')
-            .split('\n')
+            .replace(/\[CHART\][\s\S]*?\[\/CHART\]/gi, '');
+
+        const lines = [];
+
+        for (const raw of withoutCode.split('\n')) {
             // Any row of a table, header and separator included.
-            .filter((line) => !line.trimStart().startsWith('|'))
-            .map((line) => line
+            if (raw.trimStart().startsWith('|')) continue;
+
+            const line = raw
+                .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+                .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+                .replace(/https?:\/\/\S+/g, '')
                 .replace(/^\s*#{1,6}\s*/, '')
                 .replace(/^\s*>\s*/, '')
                 .replace(/^\s*([-*+]|\d+[.)])\s+/, '')
                 .replace(/\*\*|__|\*|_/g, '')
-                .trim())
-            .filter((line) => line !== '')
-            .join('\n')
-            .trim();
+                .trim();
+
+            if (!line) continue;
+
+            // "Species page:" with its address removed is a label introducing
+            // nothing. A colon the writer already ended on ("It includes:")
+            // still introduces what follows, so that stays.
+            if (line.endsWith(':') && !raw.trimEnd().endsWith(':')) continue;
+
+            lines.push(line);
+        }
+
+        return lines.join('\n').trim();
     }
 
     function getRawText(proseEl) {
