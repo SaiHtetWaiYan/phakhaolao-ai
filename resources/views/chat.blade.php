@@ -532,6 +532,7 @@ document.addEventListener('DOMContentLoaded', function () {
             cancel: 'Cancel',
             delete: 'Delete',
             deleted: 'Conversation deleted',
+            nothing_to_read: 'There is nothing to read aloud here.',
             delete_failed: 'Could not delete that chat.',
             search_chats: 'Search chats',
             date_today: 'TODAY',
@@ -574,6 +575,7 @@ document.addEventListener('DOMContentLoaded', function () {
             cancel: 'ຍົກເລີກ',
             delete: 'ລຶບ',
             deleted: 'ລຶບການສົນທະນາແລ້ວ',
+            nothing_to_read: 'ບໍ່ມີເນື້ອຫາໃຫ້ອ່ານອອກສຽງ.',
             delete_failed: 'ບໍ່ສາມາດລຶບການສົນທະນານີ້ໄດ້.',
             search_chats: 'ຄົ້ນຫາການສົນທະນາ',
             date_today: 'ມື້ນີ້',
@@ -1112,6 +1114,39 @@ document.addEventListener('DOMContentLoaded', function () {
     const COPY_SVG = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>';
     const CHECK_SVG = '<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
 
+    /**
+     * The part of a reply worth reading aloud.
+     *
+     * Speech is linear, so everything that only works on a page is dropped: a
+     * table read cell by cell is unfollowable, a URL read character by
+     * character is noise, and an image has nothing to say. Link text is kept —
+     * that is the sentence the writer meant.
+     *
+     * Reads the markdown rather than the rendered text, where a table's cells
+     * and an auto-linked address are both just more words.
+     */
+    function speakableText(markdown) {
+        return (markdown || '')
+            .replace(/```[\s\S]*?```/g, '')
+            .replace(/`([^`]*)`/g, '$1')
+            .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+            .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+            .replace(/\[CHART\][\s\S]*?\[\/CHART\]/gi, '')
+            .replace(/https?:\/\/\S+/g, '')
+            .split('\n')
+            // Any row of a table, header and separator included.
+            .filter((line) => !line.trimStart().startsWith('|'))
+            .map((line) => line
+                .replace(/^\s*#{1,6}\s*/, '')
+                .replace(/^\s*>\s*/, '')
+                .replace(/^\s*([-*+]|\d+[.)])\s+/, '')
+                .replace(/\*\*|__|\*|_/g, '')
+                .trim())
+            .filter((line) => line !== '')
+            .join('\n')
+            .trim();
+    }
+
     function getRawText(proseEl) {
         const raw = proseEl.closest('.chat-message')?.querySelector('.js-assistant-raw');
         if (raw && typeof raw.value === 'string' && raw.value.trim()) return raw.value;
@@ -1164,7 +1199,16 @@ document.addEventListener('DOMContentLoaded', function () {
         speakBtn.title = t('listen');
         speakBtn.className = 'js-speak-btn text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors';
         speakBtn.innerHTML = SPEAKER_SVG;
-        speakBtn.addEventListener('click', () => speak(proseEl.textContent || '', speakBtn));
+        speakBtn.addEventListener('click', () => {
+            const spoken = speakableText(getRawText(proseEl));
+
+            if (!spoken) {
+                pkToast(window.pklT?.('nothing_to_read') || 'There is nothing to read aloud here.');
+                return;
+            }
+
+            speak(spoken, speakBtn);
+        });
 
         row.appendChild(copyBtn);
         row.appendChild(speakBtn);
