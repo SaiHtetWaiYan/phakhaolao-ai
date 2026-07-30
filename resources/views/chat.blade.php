@@ -1058,16 +1058,38 @@ document.addEventListener('DOMContentLoaded', function () {
         if (currentAudio) { currentAudio.pause(); currentAudio = null; }
         if (currentSpeakBtn) { setSpeakState(currentSpeakBtn, false); currentSpeakBtn = null; }
     }
-    function splitSpeechChunks(text, maxLen = 240) {
-        const parts = text.match(/[^.!?။\n]+[.!?။\n]*/gu) || [text];
-        const chunks = [];
-        let cur = '';
-        for (const p of parts) {
-            if (cur && (cur + p).length > maxLen) { chunks.push(cur.trim()); cur = ''; }
-            cur += p;
+    /**
+     * Split a reply into pieces short enough to synthesize quickly, each
+     * tagged with the language it should be read in.
+     *
+     * A mixed reply read entirely by the Lao voice pronounced its English
+     * badly, while splitting on size alone changed voice mid-paragraph for no
+     * reason a listener could follow. So the split follows sentences:
+     * consecutive sentences in the same language are grouped, and the voice
+     * only changes where the language does. A Lao sentence carrying a Latin
+     * species name stays Lao — the multilingual voice handles those, and
+     * cutting mid-sentence would sound far worse.
+     */
+    function speechSegments(text, maxLen = 240) {
+        const sentences = (text.match(/[^.!?。\n]+[.!?。\n]*/gu) || [text])
+            .map((sentence) => sentence.trim())
+            .filter(Boolean);
+
+        const segments = [];
+
+        for (const sentence of sentences) {
+            const language = speechLanguage(sentence);
+            const last = segments[segments.length - 1];
+
+            if (last && last.language === language && (last.text.length + 1 + sentence.length) <= maxLen) {
+                last.text = `${last.text} ${sentence}`;
+                continue;
+            }
+
+            segments.push({ text: sentence.slice(0, 3000), language });
         }
-        if (cur.trim()) chunks.push(cur.trim());
-        return chunks.length ? chunks : [text];
+
+        return segments;
     }
     function fetchSpeech(text, language) {
         return fetch('{{ route("tts") }}', {
@@ -1098,11 +1120,10 @@ document.addEventListener('DOMContentLoaded', function () {
         currentSpeakBtn = btn;
         setSpeakState(btn, 'loading');
 
-        const chunks = splitSpeechChunks(text);
-        const language = speechLanguage(text);
+        const chunks = speechSegments(text);
         let idx = 0;
         // Start the first sentence right away; prefetch the next while playing.
-        let nextUrl = fetchSpeech(chunks[0], language).catch(() => null);
+        let nextUrl = fetchSpeech(chunks[0].text, chunks[0].language).catch(() => null);
 
         const finish = () => {
             if (token === speakToken) { setSpeakState(btn, false); currentSpeakBtn = null; currentAudio = null; }
@@ -1114,7 +1135,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (token !== speakToken) return;
             if (!url) { finish(); return; }
             idx++;
-            nextUrl = idx < chunks.length ? fetchSpeech(chunks[idx], language).catch(() => null) : Promise.resolve(null);
+            nextUrl = idx < chunks.length ? fetchSpeech(chunks[idx].text, chunks[idx].language).catch(() => null) : Promise.resolve(null);
             const audio = new Audio(url);
             currentAudio = audio;
             setSpeakState(btn, true);
