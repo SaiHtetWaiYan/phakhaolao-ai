@@ -78,3 +78,39 @@ it('declares the wav rate to the recogniser', function () {
     expect($format['encoding'])->toBe('LINEAR16')
         ->and($format['sampleRateHertz'])->toBe(44100);
 });
+
+// Lao and English cannot be told apart in one pass, so both are tried. Doing
+// so one after the other doubled the wait on every recording.
+it('asks both languages at once and keeps the more confident answer', function () {
+    Illuminate\Support\Facades\Cache::put('google_tts_access_token', 'test-token', 60);
+
+    Illuminate\Support\Facades\Http::fake(function ($request) {
+        $language = $request->data()['config']['languageCode'];
+
+        return Illuminate\Support\Facades\Http::response([
+            'results' => [[
+                'alternatives' => [[
+                    'transcript' => $language === 'lo-LA' ? 'ສະບາຍດີ' : 'sa bye dee',
+                    'confidence' => $language === 'lo-LA' ? 0.91 : 0.42,
+                ]],
+            ]],
+        ]);
+    });
+
+    $response = $this->post('/transcribe', [
+        'audio' => Illuminate\Http\UploadedFile::fake()->createWithContent(
+            'voice.wav',
+            wavHeader(16000).'audio-bytes'
+        ),
+        'language' => 'auto',
+    ]);
+
+    $response->assertSuccessful()->assertJson(['text' => 'ສະບາຍດີ']);
+
+    $asked = [];
+    Illuminate\Support\Facades\Http::recorded(function ($request) use (&$asked) {
+        $asked[] = $request->data()['config']['languageCode'];
+    });
+
+    expect($asked)->toContain('en-US')->toContain('lo-LA');
+});

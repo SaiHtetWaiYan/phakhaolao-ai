@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Google\Auth\Credentials\ServiceAccountCredentials;
+use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -11,6 +13,8 @@ use Illuminate\Support\Facades\Log;
 
 class SttController extends Controller
 {
+    private const RECOGNIZE_URL = 'https://speech.googleapis.com/v1/speech:recognize';
+
     /**
      * Transcribe a recorded audio clip to text via Google Speech-to-Text.
      * Lao (lo-LA) transcribes correctly in Lao script, unlike OpenAI Whisper.
@@ -29,13 +33,9 @@ class SttController extends Controller
 
         // Google can't auto-detect Lao vs English, so for "auto" we transcribe
         // with both and keep the higher-confidence result.
-        if ($language === 'en' || $language === 'lo') {
-            $result = $this->recognize($content, $language === 'lo' ? 'lo-LA' : 'en-US', $format);
-        } else {
-            $english = $this->recognize($content, 'en-US', $format);
-            $lao = $this->recognize($content, 'lo-LA', $format);
-            $result = $english['confidence'] >= $lao['confidence'] ? $english : $lao;
-        }
+        $result = ($language === 'en' || $language === 'lo')
+            ? $this->recognize($content, $language === 'lo' ? 'lo-LA' : 'en-US', $format)
+            : $this->recognizeEitherLanguage($content, $format);
 
         return response()->json(['text' => $result['text']]);
     }
@@ -87,6 +87,57 @@ class SttController extends Controller
      */
     private function recognize(string $content, string $languageCode, array $format): array
     {
+        try {
+            $response = Http::withToken($this->googleAccessToken())
+                ->timeout(60)
+                ->post(self::RECOGNIZE_URL, $this->payload($content, $languageCode, $format));
+        } catch (\Throwable $e) {
+            Log::error('STT request failed', ['error' => $e->getMessage()]);
+
+            return ['text' => '', 'confidence' => 0.0];
+        }
+
+        return $this->transcript($response, $format);
+    }
+
+    /**
+     * Try both languages and keep whichever came back more confident.
+     *
+     * Concurrently: one after the other doubled the wait on every recording,
+     * and the two requests have nothing to say to each other.
+     *
+     * @param  array{encoding: string, sampleRateHertz: int|null}  $format
+     * @return array{text: string, confidence: float}
+     */
+    private function recognizeEitherLanguage(string $content, array $format): array
+    {
+        $token = $this->googleAccessToken();
+
+        try {
+            $responses = Http::pool(fn (Pool $pool): array => [
+                $pool->as('en')->withToken($token)->timeout(60)
+                    ->post(self::RECOGNIZE_URL, $this->payload($content, 'en-US', $format)),
+                $pool->as('lo')->withToken($token)->timeout(60)
+                    ->post(self::RECOGNIZE_URL, $this->payload($content, 'lo-LA', $format)),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('STT request failed', ['error' => $e->getMessage()]);
+
+            return ['text' => '', 'confidence' => 0.0];
+        }
+
+        $english = $this->transcript($responses['en'] ?? null, $format);
+        $lao = $this->transcript($responses['lo'] ?? null, $format);
+
+        return $english['confidence'] >= $lao['confidence'] ? $english : $lao;
+    }
+
+    /**
+     * @param  array{encoding: string, sampleRateHertz: int|null}  $format
+     * @return array<string, mixed>
+     */
+    private function payload(string $content, string $languageCode, array $format): array
+    {
         $config = [
             'encoding' => $format['encoding'],
             'languageCode' => $languageCode,
@@ -97,23 +148,21 @@ class SttController extends Controller
             $config['sampleRateHertz'] = $format['sampleRateHertz'];
         }
 
-        try {
-            $response = Http::withToken($this->googleAccessToken())
-                ->timeout(60)
-                ->post('https://speech.googleapis.com/v1/speech:recognize', [
-                    'config' => $config,
-                    'audio' => ['content' => $content],
-                ]);
-        } catch (\Throwable $e) {
-            Log::error('STT request failed', ['error' => $e->getMessage()]);
+        return ['config' => $config, 'audio' => ['content' => $content]];
+    }
 
-            return ['text' => '', 'confidence' => 0.0];
-        }
-
-        if (! $response->successful()) {
+    /**
+     * Read a recognition response, treating any failure as nothing heard.
+     *
+     * @param  array{encoding: string, sampleRateHertz: int|null}  $format
+     * @return array{text: string, confidence: float}
+     */
+    private function transcript(mixed $response, array $format): array
+    {
+        if (! $response instanceof Response || ! $response->successful()) {
             Log::error('STT failed', [
-                'status' => $response->status(),
-                'error' => $response->json('error'),
+                'status' => $response instanceof Response ? $response->status() : null,
+                'error' => $response instanceof Response ? $response->json('error') : (string) $response,
                 'sent_encoding' => $format['encoding'],
                 'sent_rate' => $format['sampleRateHertz'],
             ]);

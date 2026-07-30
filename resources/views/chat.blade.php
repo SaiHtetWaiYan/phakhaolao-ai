@@ -2003,8 +2003,9 @@ document.addEventListener('DOMContentLoaded', function () {
         setMicState('transcribing');
         const fd = new FormData();
         fd.append('audio', blob, 'recording.webm');
-        // Send the switch value; for "auto" the backend detects Lao vs English.
-        fd.append('language', getResponseLanguage());
+        // The language is the server's to decide: it tries Lao and English
+        // together and keeps the more confident result. Sending the interface
+        // language meant a Lao interface transcribed English speech as Lao.
         fetch('{{ route("transcribe") }}', {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': csrfToken },
