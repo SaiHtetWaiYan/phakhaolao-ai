@@ -1069,13 +1069,25 @@ document.addEventListener('DOMContentLoaded', function () {
         if (cur.trim()) chunks.push(cur.trim());
         return chunks.length ? chunks : [text];
     }
-    function fetchSpeech(text) {
+    function fetchSpeech(text, language) {
         return fetch('{{ route("tts") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
-            body: JSON.stringify({ text: text.slice(0, 3000) }),
+            body: JSON.stringify({ text: text.slice(0, 3000), language }),
         }).then((r) => { if (!r.ok) throw new Error('tts'); return r.blob(); })
           .then((blob) => URL.createObjectURL(blob));
+    }
+
+    /**
+     * The voice for a whole reply, decided once.
+     *
+     * A reply is read in pieces, and letting each piece pick for itself
+     * changed the speaker partway through a mixed answer — Lao sentences in
+     * one voice, an all-English paragraph in another. Any Lao at all means the
+     * multilingual voice, which was chosen for exactly this mixture.
+     */
+    function speechLanguage(text) {
+        return /[\u0E80-\u0EFF]/.test(text) ? 'lo' : 'en';
     }
     function speak(text, btn) {
         text = (text || '').trim();
@@ -1087,9 +1099,10 @@ document.addEventListener('DOMContentLoaded', function () {
         setSpeakState(btn, 'loading');
 
         const chunks = splitSpeechChunks(text);
+        const language = speechLanguage(text);
         let idx = 0;
         // Start the first sentence right away; prefetch the next while playing.
-        let nextUrl = fetchSpeech(chunks[0]).catch(() => null);
+        let nextUrl = fetchSpeech(chunks[0], language).catch(() => null);
 
         const finish = () => {
             if (token === speakToken) { setSpeakState(btn, false); currentSpeakBtn = null; currentAudio = null; }
@@ -1101,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (token !== speakToken) return;
             if (!url) { finish(); return; }
             idx++;
-            nextUrl = idx < chunks.length ? fetchSpeech(chunks[idx]).catch(() => null) : Promise.resolve(null);
+            nextUrl = idx < chunks.length ? fetchSpeech(chunks[idx], language).catch(() => null) : Promise.resolve(null);
             const audio = new Audio(url);
             currentAudio = audio;
             setSpeakState(btn, true);

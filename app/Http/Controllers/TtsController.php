@@ -20,6 +20,8 @@ class TtsController extends Controller
     {
         $validated = $request->validate([
             'text' => ['required', 'string'],
+            // The caller decides once for a whole reply; see googleVoice().
+            'language' => ['nullable', 'in:en,lo'],
         ]);
 
         $text = trim(preg_replace('/\s+/u', ' ', $validated['text']) ?? '');
@@ -29,7 +31,7 @@ class TtsController extends Controller
             abort(422, 'No text to speak.');
         }
 
-        $voice = $this->googleVoice($text);
+        $voice = $this->googleVoice($text, $validated['language'] ?? null);
 
         // Cache identical text on disk so repeated/replayed sentences are instant
         // and don't re-bill the TTS provider. Keyed by voice as well: the same
@@ -70,15 +72,24 @@ class TtsController extends Controller
      * Gemini-TTS is the only voice Google offers that speaks Lao — the
      * standard catalogue lists none for lo-LA — but it is generative and
      * around ten times slower than a standard voice on the same sentence.
-     * So it is used only when the text actually contains Lao script.
+     * So it is used only when the text is Lao.
+     *
+     * A reply is read in pieces, and deciding per piece changed the speaker
+     * partway through a mixed answer: the Lao sentences in one voice, an
+     * all-English paragraph in another. Callers therefore decide once for the
+     * whole reply and say so here; detection is the fallback.
      *
      * @return array{languageCode: string, name: string, modelName?: string}
      */
-    private function googleVoice(string $text): array
+    private function googleVoice(string $text, ?string $language = null): array
     {
         $config = config('tts.google');
 
-        if (preg_match('/[\x{0E80}-\x{0EFF}]/u', $text) === 1) {
+        $isLao = $language !== null
+            ? $language === 'lo'
+            : preg_match('/[\x{0E80}-\x{0EFF}]/u', $text) === 1;
+
+        if ($isLao) {
             return [
                 'languageCode' => 'lo-LA',
                 'name' => $config['voice'],
