@@ -238,49 +238,58 @@ Please double-check responses.</p>
                     <span data-i18n="transcribing">Transcribing…</span>
                 </div>
 
-                <form id="chat-form" class="relative group">
+                {{-- Flex rather than absolute, so the same three controls can
+                     sit beside the message or drop below it when it grows. --}}
+                <form id="chat-form" class="js-composer flex items-end gap-1 w-full px-2 py-2 bg-white dark:bg-zinc-800 rounded-2xl shadow-sm">
                     <input type="file" id="image-input" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
-                    <button
-                        type="button"
-                        id="upload-btn"
-                        title="Upload image"
-                        class="absolute left-2 top-1/2 -translate-y-1/2 p-2.5 text-zinc-400 hover:text-accent-600 dark:hover:text-accent-400 transition-colors rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                    >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                        </svg>
-                    </button>
-                    <input
-                        type="text"
+
+                    <textarea
                         id="message-input"
                         name="message"
+                        rows="1"
                         placeholder="Message PhaKhaoLao AI..."
                         data-i18n-ph="placeholder"
                         autocomplete="off"
-                        class="w-full pl-12 pr-24 py-4 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-sm transition-all text-[15px] placeholder:text-zinc-400"
-                    >
+                        class="js-composer-field order-2 flex-1 min-w-0 resize-none bg-transparent px-2 py-2.5 text-zinc-900 dark:text-zinc-100 text-[15px] placeholder:text-zinc-400 focus:outline-none"
+                    ></textarea>
+
+                    <div class="js-composer-actions order-3 flex items-center gap-1">
+                        <button
+                            type="button"
+                            id="mic-btn"
+                            data-i18n-title="listen"
+                            title="Voice input"
+                            class="p-2.5 text-zinc-400 hover:text-accent-600 dark:hover:text-accent-400 transition-colors rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-14 0m7 7v3m-4 0h8M12 1a3 3 0 00-3 3v6a3 3 0 006 0V4a3 3 0 00-3-3z"></path>
+                            </svg>
+                        </button>
+                        <button
+                            type="submit"
+                            id="send-btn"
+                            aria-label="Send message"
+                            class="p-2.5 bg-accent-500 text-accent-900 rounded-xl hover:bg-accent-600 disabled:opacity-30 disabled:hover:bg-accent-500 transition-all shadow-sm group"
+                            disabled
+                        >
+                            <svg class="js-send-icon w-5 h-5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                            </svg>
+                            <svg class="js-stop-icon hidden w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <rect x="6" y="6" width="12" height="12" rx="2.5"></rect>
+                            </svg>
+                        </button>
+                    </div>
+
                     <button
                         type="button"
-                        id="mic-btn"
-                        title="Voice input"
-                        class="absolute right-12 top-1/2 -translate-y-1/2 p-2.5 text-zinc-400 hover:text-accent-600 dark:hover:text-accent-400 transition-colors rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        id="upload-btn"
+                        data-i18n-title="attach"
+                        title="Upload image"
+                        class="order-1 p-2.5 text-zinc-400 hover:text-accent-600 dark:hover:text-accent-400 transition-colors rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-14 0m7 7v3m-4 0h8M12 1a3 3 0 00-3 3v6a3 3 0 006 0V4a3 3 0 00-3-3z"></path>
-                        </svg>
-                    </button>
-                    <button
-                        type="submit"
-                        id="send-btn"
-                        aria-label="Send message"
-                        class="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-accent-500 text-accent-900 rounded-xl hover:bg-accent-600 disabled:opacity-30 disabled:hover:bg-accent-500 transition-all shadow-sm group"
-                        disabled
-                    >
-                        <svg class="js-send-icon w-5 h-5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                        </svg>
-                        <svg class="js-stop-icon hidden w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <rect x="6" y="6" width="12" height="12" rx="2.5"></rect>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                         </svg>
                     </button>
                 </form>
@@ -754,6 +763,7 @@ document.addEventListener('DOMContentLoaded', function () {
             card.addEventListener('click', () => {
                 input.value = prompt;
                 input.focus();
+                resizeComposer();
                 updateSendButton();
             });
             host.appendChild(card);
@@ -1474,6 +1484,7 @@ document.addEventListener('DOMContentLoaded', function () {
         abortController = new AbortController();
         updateSendButton();
         input.value = '';
+        resizeComposer();
 
         // Capture image before clearing
         const imageFile = selectedImageFile;
@@ -2269,6 +2280,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             input.value = input.value.trim() ? (input.value.trim() + ' ' + text) : text;
+            resizeComposer();
             updateSendButton();
 
             if (sendAfterTranscribing) {
@@ -2279,6 +2291,65 @@ document.addEventListener('DOMContentLoaded', function () {
             input.focus();
         }).catch(() => { setMicState('idle'); showError('Voice transcription failed.'); });
     }
+
+    // --- Composer growth ---
+    const composer = document.getElementById('chat-form');
+
+    /**
+     * Whether the message needs more than one line in the width left beside
+     * the buttons.
+     *
+     * Always measured against that compact width, so widening the field when
+     * it stacks cannot make the text fit again and flip the layout back on
+     * every keystroke.
+     */
+    const composerMirror = document.createElement('div');
+    composerMirror.style.cssText = 'position:absolute;visibility:hidden;white-space:pre-wrap;word-wrap:break-word;top:-9999px;left:-9999px;';
+    document.body.appendChild(composerMirror);
+
+    let compactFieldWidth = 0;
+
+    function outgrowsOneLine(text) {
+        if (!input || !text) return false;
+
+        const style = getComputedStyle(input);
+
+        if (!composer.classList.contains('is-stacked')) {
+            compactFieldWidth = input.clientWidth;
+        }
+
+        if (!compactFieldWidth) return false;
+
+        composerMirror.style.width = `${compactFieldWidth}px`;
+        composerMirror.style.font = style.font;
+        composerMirror.style.lineHeight = style.lineHeight;
+        composerMirror.style.padding = `0 ${style.paddingLeft} 0 ${style.paddingRight}`;
+        composerMirror.textContent = text;
+
+        return composerMirror.scrollHeight > parseFloat(style.lineHeight) * 1.5;
+    }
+
+    function resizeComposer() {
+        if (!input) return;
+
+        composer.classList.toggle('is-stacked', outgrowsOneLine(input.value));
+
+        // Let it grow with the message, then scroll rather than push the
+        // conversation off the screen.
+        input.style.height = 'auto';
+        input.style.height = `${Math.min(input.scrollHeight, 200)}px`;
+    }
+
+    input?.addEventListener('input', resizeComposer);
+
+    // Enter sends, as it did when this was a single-line field; the textarea
+    // would otherwise just insert a newline.
+    input?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+            event.preventDefault();
+            composer.requestSubmit();
+        }
+    });
 
     micBtn?.addEventListener('click', () => startRecording());
     document.getElementById('voice-cancel')?.addEventListener('click', cancelRecording);
@@ -2408,6 +2479,26 @@ ol.pk-list { list-style: decimal; }
 .pk-theme-switching *::before,
 .pk-theme-switching *::after {
     transition: none !important;
+}
+
+/* Once the message outgrows one line it takes the whole width and the
+   controls drop below it, as the app does. Ordering does the work: the field
+   leads, then the attach button and the actions share the row under it. */
+.js-composer.is-stacked {
+    flex-wrap: wrap;
+}
+.js-composer.is-stacked .js-composer-field {
+    order: 1;
+    flex-basis: 100%;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+.js-composer.is-stacked .js-composer-actions {
+    order: 3;
+    margin-left: auto;
+}
+.js-composer.is-stacked #upload-btn {
+    order: 2;
 }
 
 /* Nothing marks focus on these inputs: the browser's default outline is its
