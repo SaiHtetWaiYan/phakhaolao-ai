@@ -312,8 +312,9 @@ Please double-check responses.</p>
 </div>
 
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+{{-- Chart and DOMPurify are bundled by Vite in resources/js/app.js, which the
+     layout loads. They are module scripts, so they run before DOMContentLoaded
+     and are ready by the time anything below calls them. --}}
 <script>
 let currentConversationId = @json($currentConversation->id ?? null);
 const CURRENT_CONVERSATION_TITLE = @json($currentConversation->title ?? '');
@@ -1159,7 +1160,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 ALLOW_DATA_ATTR: false,
             });
         }
-        return html;
+
+        // No sanitiser means we must not emit markup. A reply is influenced by
+        // whatever is in the species and library records, so returning it raw
+        // would hand those records script execution. Fall back to the plain
+        // text: DOMParser builds an inert document, so nothing here runs or
+        // loads, and the reader still gets the words.
+        return escapeHtml(new DOMParser().parseFromString(html, 'text/html').body.textContent || '');
     }
 
     function renderAssistantContent(container, rawText) {
