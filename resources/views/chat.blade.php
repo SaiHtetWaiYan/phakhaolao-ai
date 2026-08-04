@@ -591,6 +591,9 @@ document.addEventListener('DOMContentLoaded', function () {
             deleted: 'Conversation deleted',
             nothing_to_read: 'There is nothing to read aloud here.',
             delete_failed: 'Could not delete that chat.',
+            image_too_large: 'That image is too large. Please choose one under 10 MB.',
+            session_expired: 'Your session expired. Please refresh the page and try again.',
+            send_failed: 'Could not send that message. Please try again.',
             search_chats: 'Search chats',
             listening: 'Listening…',
             transcribing: 'Transcribing…',
@@ -641,6 +644,9 @@ document.addEventListener('DOMContentLoaded', function () {
             deleted: 'ລຶບການສົນທະນາແລ້ວ',
             nothing_to_read: 'ບໍ່ມີເນື້ອຫາໃຫ້ອ່ານອອກສຽງ.',
             delete_failed: 'ບໍ່ສາມາດລຶບການສົນທະນານີ້ໄດ້.',
+            image_too_large: 'ຮູບພາບນີ້ໃຫຍ່ເກີນໄປ. ກະລຸນາເລືອກຮູບທີ່ນ້ອຍກວ່າ 10 MB.',
+            session_expired: 'ເຊດຊັນຂອງທ່ານໝົດອາຍຸແລ້ວ. ກະລຸນາໂຫຼດໜ້ານີ້ໃໝ່ ແລ້ວລອງອີກຄັ້ງ.',
+            send_failed: 'ບໍ່ສາມາດສົ່ງຂໍ້ຄວາມນີ້ໄດ້. ກະລຸນາລອງໃໝ່.',
             search_chats: 'ຄົ້ນຫາການສົນທະນາ',
             listening: 'ກຳລັງຟັງ...',
             transcribing: 'ກຳລັງແປງສຽງເປັນຂໍ້ຄວາມ...',
@@ -1524,7 +1530,14 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             if (!response.ok) {
-                let errorMsg = 'Stream failed';
+                // 413 comes from nginx, not Laravel, so there is no JSON to read
+                // and the old generic message left the user with no idea that the
+                // photo was simply too big.
+                let errorMsg = response.status === 413
+                    ? (window.pklT?.('image_too_large') || 'That image is too large. Please choose one under 10 MB.')
+                    : response.status === 419
+                        ? (window.pklT?.('session_expired') || 'Your session expired. Please refresh the page and try again.')
+                        : (window.pklT?.('send_failed') || 'Could not send that message. Please try again.');
                 try {
                     const errorData = await response.json();
                     errorMsg = errorData.message || errorMsg;
